@@ -4,7 +4,8 @@ struct ChatView: View {
     @StateObject private var viewModel: ChatViewModel
     @State private var input = ""
     @FocusState private var focused: Bool
-    @Environment(\.dismiss) private var dismiss // 用于自定义返回按钮
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) var colorScheme // 获取系统主题
 
     init(conversation: Conversation) {
         _viewModel = StateObject(wrappedValue: ChatViewModel(conversation: conversation))
@@ -12,7 +13,6 @@ struct ChatView: View {
 
     var body: some View {
         ZStack {
-            // 统一背景
             GlassBackground()
 
             VStack(spacing: 0) {
@@ -25,7 +25,7 @@ struct ChatView: View {
                             }
                         }
                         .padding()
-                        .padding(.bottom, 10) // 留出底部输入框的空间
+                        .padding(.bottom, 10)
                     }
                     .scrollDismissesKeyboard(.interactively)
                     .onChange(of: viewModel.conversation.messages.last?.content) { _ in
@@ -41,20 +41,22 @@ struct ChatView: View {
                         .padding(.horizontal)
                 }
 
-                // 极简悬浮输入区域（去掉了底部厚重的背景块）
                 HStack(alignment: .bottom, spacing: 12) {
                     TextField("输入消息…", text: $input, axis: .vertical)
                         .lineLimit(1...5)
                         .focused($focused)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 12)
-                        .background(.ultraThinMaterial) // 输入框本身的玻璃质感
+                        .background {
+                            // 输入框明暗自适应
+                            RoundedRectangle(cornerRadius: 24).fill(colorScheme == .dark ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.white))
+                        }
                         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
                         .overlay(
                             RoundedRectangle(cornerRadius: 24, style: .continuous)
-                                .stroke(Color.primary.opacity(0.1), lineWidth: 1)
+                                .stroke(Color.primary.opacity(0.05), lineWidth: 1)
                         )
-                        .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 4) // 增加悬浮阴影
+                        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.1 : 0.03), radius: 10, x: 0, y: 4)
 
                     Button {
                         if viewModel.isStreaming {
@@ -72,24 +74,25 @@ struct ChatView: View {
                                 Circle()
                                     .fill(
                                         viewModel.isStreaming ? Color.red.opacity(0.8) :
-                                        (input.trimmingCharacters(in: .whitespaces).isEmpty ? Color.gray.opacity(0.4) : Color.blue)
+                                        (input.trimmingCharacters(in: .whitespaces).isEmpty
+                                            ? (colorScheme == .dark ? Color.gray.opacity(0.5) : Color.black.opacity(0.1)) // 浅色下未激活变淡灰
+                                            : Color.blue)
                                     )
                             }
                             .overlay(Circle().stroke(Color.white.opacity(0.2), lineWidth: 1))
-                            .shadow(color: Color.blue.opacity(0.4), radius: 8, x: 0, y: 4)
+                            .shadow(color: Color.blue.opacity(input.isEmpty || viewModel.isStreaming ? 0 : 0.4), radius: 8, x: 0, y: 4)
                     }
                     .disabled(input.trimmingCharacters(in: .whitespaces).isEmpty && !viewModel.isStreaming)
                     .animation(.spring(), value: viewModel.isStreaming)
                 }
                 .padding(.horizontal, 16)
-                .padding(.bottom, 8) // 贴近底部，但不完全贴死
+                .padding(.bottom, 8)
                 .padding(.top, 8)
             }
         }
         .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(true) // 隐藏系统原生返回按钮
+        .navigationBarBackButtonHidden(true)
         .toolbar {
-            // 自定义左上角液态玻璃返回按钮
             ToolbarItem(placement: .topBarLeading) {
                 Button {
                     dismiss()
@@ -98,7 +101,7 @@ struct ChatView: View {
                         .font(.system(size: 16, weight: .bold))
                         .foregroundStyle(.primary)
                 }
-                .buttonStyle(GlassButtonStyle())
+                .buttonStyle(GlassButtonStyle()) // 应用新的自适应按钮
             }
             
             ToolbarItem(placement: .navigationBarTrailing) {
@@ -123,9 +126,11 @@ struct ChatView: View {
                     .foregroundStyle(.primary)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(.ultraThinMaterial)
+                    .background {
+                        Capsule().fill(colorScheme == .dark ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.white))
+                    }
                     .clipShape(Capsule())
-                    .overlay(Capsule().stroke(Color.primary.opacity(0.1), lineWidth: 1))
+                    .overlay(Capsule().stroke(Color.primary.opacity(0.05), lineWidth: 1))
                 }
                 .disabled(viewModel.isStreaming)
             }
