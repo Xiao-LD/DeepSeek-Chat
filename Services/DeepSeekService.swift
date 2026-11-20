@@ -109,7 +109,7 @@ final class DeepSeekService {
                 }
             }
 
-            continuation.onTermination = { _ in task.cancel() }
+continuation.onTermination = { @Sendable _ in task.cancel() }
         }
     }
 }
