@@ -72,6 +72,14 @@ final class ChatViewModel: ObservableObject {
             conversation.messages[last].isStreaming = false
         }
     }
+    
+    // 新增：切换模型并保存
+    func changeModel(to model: DeepSeekModel) {
+        guard !isStreaming else { return }
+        conversation.model = model
+        conversation.updatedAt = Date()
+        StorageManager.shared.save(conversation)
+    }
 
     private func buildAPIMessages() -> [APIMessage] {
         var result: [APIMessage] = []
