@@ -1,6 +1,7 @@
 import Foundation
 
-final class DeepSeekService {
+// 声明 @unchecked Sendable，告诉编译器我们自己保证并发安全
+final class DeepSeekService: @unchecked Sendable {
 
     var baseURL: String {
         get { UserDefaults.standard.string(forKey: "apiBaseURL") ?? "https://api.deepseek.com" }
@@ -16,19 +17,22 @@ final class DeepSeekService {
         model: DeepSeekModel,
         temperature: Double
     ) -> AsyncThrowingStream<StreamEvent, Error> {
-
-        AsyncThrowingStream { continuation in
-
-            let task = Task {
+        
+        // 1. 提前把需要的变量提取为局部常量，防止 Task 内部捕获 self
+        let base = self.baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let key = self.apiKey
+        
+        return AsyncThrowingStream { continuation in
+            // 2. 使用 Task.detached 切断对外部 actor 隔离的继承
+            let task = Task.detached {
                 do {
-                    guard let apiKey, !apiKey.isEmpty else {
+                    guard let apiKey = key, !apiKey.isEmpty else {
                         throw DeepSeekError.apiKeyMissing
                     }
 
-                    guard let url = URL(
-                        string: baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-                            + "/chat/completions"
-                    ) else { throw DeepSeekError.invalidURL }
+                    guard let url = URL(string: base + "/chat/completions") else {
+                        throw DeepSeekError.invalidURL
+                    }
 
                     var request = URLRequest(url: url)
                     request.httpMethod = "POST"
@@ -51,16 +55,11 @@ final class DeepSeekService {
                         throw DeepSeekError.invalidResponse
                     }
 
-                                 guard http.statusCode == 200 else {
+                    guard http.statusCode == 200 else {
                         var errorBody = ""
                         for try await line in bytes.lines {
                             errorBody.append(line)
                         }
-                        throw DeepSeekError.httpError(
-                            statusCode: http.statusCode,
-                            body: errorBody
-                        )
-                    }
                         throw DeepSeekError.httpError(
                             statusCode: http.statusCode,
                             body: errorBody
@@ -109,7 +108,10 @@ final class DeepSeekService {
                 }
             }
 
-continuation.onTermination = { @Sendable _ in task.cancel() }
+            // 3. 标准的 onTermination 取消逻辑
+            continuation.onTermination = { @Sendable _ in
+                task.cancel()
+            }
         }
     }
 }
