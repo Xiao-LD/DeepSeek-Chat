@@ -4,6 +4,7 @@ struct ChatView: View {
     @StateObject private var viewModel: ChatViewModel
     @State private var input = ""
     @FocusState private var focused: Bool
+    @Environment(\.dismiss) private var dismiss // 用于自定义返回按钮
 
     init(conversation: Conversation) {
         _viewModel = StateObject(wrappedValue: ChatViewModel(conversation: conversation))
@@ -11,7 +12,7 @@ struct ChatView: View {
 
     var body: some View {
         ZStack {
-            // 使用统一的背景
+            // 统一背景
             GlassBackground()
 
             VStack(spacing: 0) {
@@ -24,6 +25,7 @@ struct ChatView: View {
                             }
                         }
                         .padding()
+                        .padding(.bottom, 10) // 留出底部输入框的空间
                     }
                     .scrollDismissesKeyboard(.interactively)
                     .onChange(of: viewModel.conversation.messages.last?.content) { _ in
@@ -39,60 +41,66 @@ struct ChatView: View {
                         .padding(.horizontal)
                 }
 
-                // 底部输入区域
-                VStack {
-                    HStack(alignment: .bottom, spacing: 12) {
-                        TextField("输入消息…", text: $input, axis: .vertical)
-                            .lineLimit(1...5)
-                            .focused($focused)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 12)
-                            .background(.ultraThinMaterial)
-                            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                                    .stroke(Color.primary.opacity(0.1), lineWidth: 1)
-                            )
+                // 极简悬浮输入区域（去掉了底部厚重的背景块）
+                HStack(alignment: .bottom, spacing: 12) {
+                    TextField("输入消息…", text: $input, axis: .vertical)
+                        .lineLimit(1...5)
+                        .focused($focused)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .background(.ultraThinMaterial) // 输入框本身的玻璃质感
+                        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                                .stroke(Color.primary.opacity(0.1), lineWidth: 1)
+                        )
+                        .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 4) // 增加悬浮阴影
 
-                        Button {
-                            if viewModel.isStreaming {
-                                viewModel.stop()
-                            } else {
-                                viewModel.send(input)
-                                input = ""
-                            }
-                        } label: {
-                            Image(systemName: viewModel.isStreaming ? "stop.fill" : "arrow.up")
-                                .font(.system(size: 18, weight: .bold))
-                                .foregroundStyle(.white)
-                                .frame(width: 44, height: 44)
-                                .background {
-                                    Circle()
-                                        .fill(
-                                            viewModel.isStreaming ? Color.red.opacity(0.8) :
-                                            (input.trimmingCharacters(in: .whitespaces).isEmpty ? Color.gray.opacity(0.4) : Color.blue)
-                                        )
-                                }
-                                .overlay(Circle().stroke(Color.white.opacity(0.2), lineWidth: 1))
-                                .shadow(color: Color.blue.opacity(0.4), radius: 8, x: 0, y: 4)
+                    Button {
+                        if viewModel.isStreaming {
+                            viewModel.stop()
+                        } else {
+                            viewModel.send(input)
+                            input = ""
                         }
-                        .disabled(input.trimmingCharacters(in: .whitespaces).isEmpty && !viewModel.isStreaming)
-                        .animation(.spring(), value: viewModel.isStreaming)
+                    } label: {
+                        Image(systemName: viewModel.isStreaming ? "stop.fill" : "arrow.up")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 44, height: 44)
+                            .background {
+                                Circle()
+                                    .fill(
+                                        viewModel.isStreaming ? Color.red.opacity(0.8) :
+                                        (input.trimmingCharacters(in: .whitespaces).isEmpty ? Color.gray.opacity(0.4) : Color.blue)
+                                    )
+                            }
+                            .overlay(Circle().stroke(Color.white.opacity(0.2), lineWidth: 1))
+                            .shadow(color: Color.blue.opacity(0.4), radius: 8, x: 0, y: 4)
                     }
+                    .disabled(input.trimmingCharacters(in: .whitespaces).isEmpty && !viewModel.isStreaming)
+                    .animation(.spring(), value: viewModel.isStreaming)
                 }
                 .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(.ultraThinMaterial)
-                .overlay(
-                    Rectangle()
-                        .fill(Color.primary.opacity(0.05))
-                        .frame(height: 1),
-                    alignment: .top
-                )
+                .padding(.bottom, 8) // 贴近底部，但不完全贴死
+                .padding(.top, 8)
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true) // 隐藏系统原生返回按钮
         .toolbar {
+            // 自定义左上角液态玻璃返回按钮
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(.primary)
+                }
+                .buttonStyle(GlassButtonStyle())
+            }
+            
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
                     Button {
