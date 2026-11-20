@@ -18,4 +18,5 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.daniel.DeepSeekChat.DeepSeekChat
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
-        SWIFT_VERSION: 5.9
+        SWIFT_VERSION: 5.0
+        SWIFT_STRICT_CONCURRENCY: minimal
