@@ -21,10 +21,21 @@ struct MessageBubbleView: View {
                 }
             }
             .padding(12)
-            .background(message.role == .user
-                        ? Color.accentColor.opacity(0.15)
-                        : Color(.secondarySystemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .background {
+                if message.role == .user {
+                    // 用户气泡：带点蓝调的毛玻璃
+                    Color.blue.opacity(0.25).background(.ultraThinMaterial)
+                } else {
+                    // AI 气泡：深色磨砂玻璃
+                    Color.black.opacity(0.15).background(.regularMaterial)
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(
+                // 增加一圈微弱的高光边框，更有玻璃感
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(Color.white.opacity(0.15), lineWidth: 1)
+            )
 
             if message.role != .user { Spacer(minLength: 40) }
         }
