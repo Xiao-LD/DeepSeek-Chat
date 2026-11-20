@@ -1,0 +1,21 @@
+name: DeepSeekChat
+options:
+  bundleIdPrefix: com.yourname
+  deploymentTarget:
+    iOS: "16.0"
+targets:
+  DeepSeekChat:
+    type: application
+    platform: iOS
+    sources:
+      - path: .
+        excludes:
+          - "*.yml"
+          - "*.md"
+          - ".github"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.yourname.DeepSeekChat
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        SWIFT_VERSION: 5.9
