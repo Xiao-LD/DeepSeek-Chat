@@ -1,0 +1,42 @@
+name: Build Unsigned IPA
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Archive without signing
+        run: |
+          xcodebuild archive \
+            -project DeepSeekChat.xcodeproj \
+            -scheme DeepSeekChat \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/DeepSeekChat.xcarchive \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Package unsigned IPA
+        run: |
+          mkdir -p build/Payload
+          cp -r build/DeepSeekChat.xcarchive/Products/Applications/DeepSeekChat.app build/Payload/
+          cd build
+          zip -r DeepSeekChat-unsigned.ipa Payload
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DeepSeekChat-unsigned-ipa
+          path: build/DeepSeekChat-unsigned.ipa
