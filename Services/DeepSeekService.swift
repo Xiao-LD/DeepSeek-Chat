@@ -51,13 +51,16 @@ final class DeepSeekService {
                         throw DeepSeekError.invalidResponse
                     }
 
-                    guard http.statusCode == 200 else {
+                                 guard http.statusCode == 200 else {
                         var errorBody = ""
-                        for try await byte in bytes {
-                            if let scalar = UnicodeScalar(byte) {
-                                errorBody.append(Character(scalar))
-                            }
+                        for try await line in bytes.lines {
+                            errorBody.append(line)
                         }
+                        throw DeepSeekError.httpError(
+                            statusCode: http.statusCode,
+                            body: errorBody
+                        )
+                    }
                         throw DeepSeekError.httpError(
                             statusCode: http.statusCode,
                             body: errorBody
