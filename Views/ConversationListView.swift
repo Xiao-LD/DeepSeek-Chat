@@ -1,6 +1,5 @@
 import SwiftUI
 
-// 1. 自适应系统主题的全局背景
 struct GlassBackground: View {
     @Environment(\.colorScheme) var colorScheme
     
@@ -11,25 +10,35 @@ struct GlassBackground: View {
                 startPoint: .top, endPoint: .bottom
             ).ignoresSafeArea()
         } else {
+            // 浅色模式：更干净透亮的白灰渐变
             LinearGradient(
-                colors: [Color(white: 0.95), Color(red: 0.9, green: 0.92, blue: 0.98)],
+                colors: [Color(red: 0.98, green: 0.98, blue: 1.0), Color(red: 0.92, green: 0.94, blue: 0.98)],
                 startPoint: .top, endPoint: .bottom
             ).ignoresSafeArea()
         }
     }
 }
 
-// 2. 通用液态玻璃按钮样式
+// 核心修复：完全适配浅色/深色的玻璃按钮样式
 struct GlassButtonStyle: ButtonStyle {
+    @Environment(\.colorScheme) var colorScheme
+    
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .padding(10)
-            .background(.ultraThinMaterial)
+            .background {
+                if colorScheme == .dark {
+                    Circle().fill(.ultraThinMaterial) // 深色模式用材质
+                } else {
+                    Circle().fill(Color.white) // 浅色模式用纯白，避免发灰
+                }
+            }
             .clipShape(Circle())
             .overlay(
-                Circle().stroke(Color.primary.opacity(0.1), lineWidth: 1)
+                Circle().stroke(Color.primary.opacity(colorScheme == .dark ? 0.15 : 0.05), lineWidth: 1)
             )
-            .shadow(color: Color.black.opacity(0.15), radius: configuration.isPressed ? 2 : 8, x: 0, y: configuration.isPressed ? 1 : 4)
+            // 浅色模式下阴影极淡，深色模式保留发光感
+            .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.2 : 0.05), radius: configuration.isPressed ? 2 : 6, x: 0, y: configuration.isPressed ? 1 : 3)
             .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
             .animation(.easeOut(duration: 0.2), value: configuration.isPressed)
     }
@@ -38,6 +47,7 @@ struct GlassButtonStyle: ButtonStyle {
 struct ConversationListView: View {
     @State private var conversations: [Conversation] = []
     @State private var showSettings = false
+    @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
         NavigationStack {
@@ -63,14 +73,20 @@ struct ConversationListView: View {
                                         .foregroundStyle(.tertiary)
                                 }
                                 .padding()
-                                // 列表行的液态玻璃背景
-                                .background(.ultraThinMaterial)
+                                // 列表卡片背景自适应
+                                .background {
+                                    if colorScheme == .dark {
+                                        RoundedRectangle(cornerRadius: 16).fill(.ultraThinMaterial)
+                                    } else {
+                                        RoundedRectangle(cornerRadius: 16).fill(Color.white.opacity(0.8))
+                                    }
+                                }
                                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                        .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                                        .stroke(Color.primary.opacity(0.05), lineWidth: 1)
                                 )
-                                .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+                                .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.1 : 0.03), radius: 5, x: 0, y: 2)
                             }
                             .buttonStyle(.plain)
                             .contextMenu {
@@ -116,7 +132,7 @@ struct ConversationListView: View {
                 SettingsView()
             }
             .onAppear(perform: reload)
-            .toolbarBackground(.hidden, for: .navigationBar) // 隐藏系统原生导航栏背景，露出我们的渐变
+            .toolbarBackground(.hidden, for: .navigationBar)
         }
     }
 
@@ -125,9 +141,10 @@ struct ConversationListView: View {
     }
 }
 
-// 3. 重构设置界面，抛弃 Form，采用自适应的玻璃卡片
+// 设置界面同样适配浅色
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) var colorScheme
     @State private var apiKey = ""
     @State private var baseURL = "https://api.deepseek.com"
     @State private var saved = false
@@ -139,7 +156,6 @@ struct SettingsView: View {
                 
                 ScrollView {
                     VStack(spacing: 20) {
-                        // 玻璃卡片容器
                         VStack(spacing: 16) {
                             VStack(alignment: .leading, spacing: 6) {
                                 Text("API Key")
@@ -149,7 +165,7 @@ struct SettingsView: View {
                                     .textInputAutocapitalization(.never)
                                     .autocorrectionDisabled()
                                     .padding(12)
-                                    .background(Color.primary.opacity(0.05))
+                                    .background(Color.primary.opacity(0.04))
                                     .clipShape(RoundedRectangle(cornerRadius: 10))
                             }
                             
@@ -161,16 +177,17 @@ struct SettingsView: View {
                                     .textInputAutocapitalization(.never)
                                     .autocorrectionDisabled()
                                     .padding(12)
-                                    .background(Color.primary.opacity(0.05))
+                                    .background(Color.primary.opacity(0.04))
                                     .clipShape(RoundedRectangle(cornerRadius: 10))
                             }
                         }
                         .padding(20)
-                        .background(.ultraThinMaterial)
+                        .background {
+                            RoundedRectangle(cornerRadius: 20).fill(colorScheme == .dark ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.white.opacity(0.8)))
+                        }
                         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.primary.opacity(0.1), lineWidth: 1))
+                        .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.primary.opacity(0.05), lineWidth: 1))
                         
-                        // 液态玻璃保存按钮
                         Button {
                             KeychainHelper.shared.save(
                                 apiKey, service: "DeepSeekChat", account: "apiKey"
@@ -186,10 +203,12 @@ struct SettingsView: View {
                                 .foregroundStyle(saved ? .green : .blue)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 14)
-                                .background(.ultraThinMaterial)
+                                .background {
+                                    RoundedRectangle(cornerRadius: 16).fill(colorScheme == .dark ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.white))
+                                }
                                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                                .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.blue.opacity(saved ? 0 : 0.3), lineWidth: 1))
-                                .shadow(color: Color.blue.opacity(saved ? 0 : 0.2), radius: 10, x: 0, y: 5)
+                                .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.blue.opacity(saved ? 0 : 0.2), lineWidth: 1))
+                                .shadow(color: Color.blue.opacity(saved ? 0 : 0.1), radius: 10, x: 0, y: 5)
                         }
                         .buttonStyle(.plain)
                         .padding(.horizontal, 20)
@@ -206,9 +225,11 @@ struct SettingsView: View {
                         .foregroundStyle(.primary)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
-                        .background(.ultraThinMaterial)
+                        .background {
+                            Capsule().fill(colorScheme == .dark ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.white))
+                        }
                         .clipShape(Capsule())
-                        .overlay(Capsule().stroke(Color.primary.opacity(0.1), lineWidth: 1))
+                        .overlay(Capsule().stroke(Color.primary.opacity(0.05), lineWidth: 1))
                 }
             }
             .toolbarBackground(.hidden, for: .navigationBar)
