@@ -11,16 +11,10 @@ struct ChatView: View {
 
     var body: some View {
         ZStack {
-            // 1. 全局炫酷渐变背景
-            LinearGradient(
-                colors: [Color.black, Color(red: 0.08, green: 0.08, blue: 0.15)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
+            // 使用统一的背景
+            GlassBackground()
 
             VStack(spacing: 0) {
-                // 2. 聊天记录区域
                 ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(spacing: 16) {
@@ -45,7 +39,7 @@ struct ChatView: View {
                         .padding(.horizontal)
                 }
 
-                // 3. 底部输入区域（液态玻璃质感）
+                // 底部输入区域
                 VStack {
                     HStack(alignment: .bottom, spacing: 12) {
                         TextField("输入消息…", text: $input, axis: .vertical)
@@ -57,10 +51,9 @@ struct ChatView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 24, style: .continuous)
-                                    .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                                    .stroke(Color.primary.opacity(0.1), lineWidth: 1)
                             )
 
-                        // 极度精致的液态发送按钮
                         Button {
                             if viewModel.isStreaming {
                                 viewModel.stop()
@@ -92,7 +85,7 @@ struct ChatView: View {
                 .background(.ultraThinMaterial)
                 .overlay(
                     Rectangle()
-                        .fill(Color.white.opacity(0.05))
+                        .fill(Color.primary.opacity(0.05))
                         .frame(height: 1),
                     alignment: .top
                 )
@@ -100,7 +93,6 @@ struct ChatView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            // 顶部导航栏右侧的模型切换按钮
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
                     Button {
@@ -125,20 +117,17 @@ struct ChatView: View {
                     .padding(.vertical, 6)
                     .background(.ultraThinMaterial)
                     .clipShape(Capsule())
-                    .overlay(Capsule().stroke(Color.white.opacity(0.15), lineWidth: 1))
+                    .overlay(Capsule().stroke(Color.primary.opacity(0.1), lineWidth: 1))
                 }
-                .disabled(viewModel.isStreaming) // 发送中禁止切换模型
+                .disabled(viewModel.isStreaming)
             }
             
-            // 顶部导航栏的标题
             ToolbarItem(placement: .principal) {
                 Text(viewModel.conversation.model == .reasoner ? "DeepSeek R1" : "DeepSeek V3")
                     .font(.headline)
                     .foregroundStyle(.primary)
             }
         }
-        // 让原生导航栏也变成透明毛玻璃
-        .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
-        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarBackground(.hidden, for: .navigationBar)
     }
 }
