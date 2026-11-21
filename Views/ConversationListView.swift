@@ -1,6 +1,5 @@
 import SwiftUI
 
-// 全局纯色背景
 struct GlassBackground: View {
     @Environment(\.colorScheme) var colorScheme
     var body: some View {
@@ -25,8 +24,9 @@ struct ConversationListView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
+            ZStack(alignment: .top) {
                 GlassBackground()
+                
                 ScrollView {
                     LazyVStack(spacing: 10) {
                         ForEach(filteredConversations) { conv in
@@ -39,7 +39,7 @@ struct ConversationListView: View {
                                     Spacer()
                                 }
                                 .padding(16)
-                                .glassEffect(.regular, in: .rect(cornerRadius: 16))
+                                .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 16))
                             }
                             .buttonStyle(.plain)
                             .contextMenu {
@@ -49,27 +49,57 @@ struct ConversationListView: View {
                             }
                         }
                     }
-                    .padding()
+                    .padding(.horizontal, 16)
+                    .padding(.top, 140) // 给大标题留出空间
+                    .padding(.bottom, 80) // 给搜索框留出空间
+                }
+                // 🔥 主界面也使用原生软边缘模糊
+                .scrollEdgeEffectStyle(.soft, for: .top)
+                
+                // 自绘的顶部悬浮区
+                VStack(spacing: 0) {
+                    GlassEffectContainer(spacing: 16) {
+                        HStack {
+                            Button { showSettings = true } label: {
+                                Image(systemName: "line.3.horizontal").font(.system(size: 18, weight: .medium)).foregroundStyle(.primary).frame(width: 44, height: 44)
+                                    .glassEffect(.regular.interactive(), in: .circle)
+                            }
+                            Spacer()
+                            Button {
+                                let new = Conversation(id: UUID(), title: "新对话", messages: [], systemPrompt: "", model: .chat, temperature: 0.7, createdAt: Date(), updatedAt: Date())
+                                StorageManager.shared.save(new); reload()
+                            } label: {
+                                Image(systemName: "plus").font(.system(size: 20, weight: .medium)).foregroundStyle(.primary).frame(width: 44, height: 44)
+                                    .glassEffect(.regular.interactive(), in: .circle)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 50)
+                    
+                    HStack {
+                        Text("对话").font(.system(size: 36, weight: .bold)).foregroundStyle(.primary)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 16)
+                    
+                    Spacer()
+                }
+                
+                VStack {
+                    Spacer()
+                    HStack {
+                        Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                        TextField("搜索历史", text: $searchText).textInputAutocapitalization(.never)
+                    }
+                    .padding(.horizontal, 16).padding(.vertical, 12)
+                    .glassEffect(.regular.interactive(), in: .capsule)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 20)
                 }
             }
-            .navigationTitle("对话").searchable(text: $searchText, prompt: "搜索历史")
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button { showSettings = true } label: {
-                        Image(systemName: "line.3.horizontal").font(.system(size: 18, weight: .medium)).foregroundStyle(.primary).frame(width: 40, height: 40)
-                    }
-                    .buttonStyle(.glass)
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        let new = Conversation(id: UUID(), title: "新对话", messages: [], systemPrompt: "", model: .chat, temperature: 0.7, createdAt: Date(), updatedAt: Date())
-                        StorageManager.shared.save(new); reload()
-                    } label: {
-                        Image(systemName: "plus").font(.system(size: 18, weight: .medium)).foregroundStyle(.primary).frame(width: 40, height: 40)
-                    }
-                    .buttonStyle(.glass)
-                }
-            }
+            .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $showSettings) { SettingsView() }
             .onAppear(perform: reload)
             .alert("重命名", isPresented: Binding(get: { renamingConversation != nil }, set: { if !$0 { renamingConversation = nil } })) {
