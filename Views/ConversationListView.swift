@@ -120,8 +120,12 @@ struct SettingsView: View {
     @State private var saved = false
     
     @AppStorage("appTheme") private var appTheme: Int = 0
+    @AppStorage("accentColorHex") private var accentColorHex: String = "#007AFF" // 主题色
     @AppStorage("totalPromptTokens") private var totalPromptTokens: Int = 0
     @AppStorage("totalCompletionTokens") private var totalCompletionTokens: Int = 0
+    
+    // 自定义模型
+    @AppStorage("customModelName") private var customModelName: String = ""
 
     var body: some View {
         NavigationStack {
@@ -129,12 +133,22 @@ struct SettingsView: View {
                 GlassBackground()
                 ScrollView {
                     VStack(spacing: 20) {
-                        // 外观
+                        // 外观与颜色
                         VStack(alignment: .leading, spacing: 10) {
                             Text("外观主题").font(.caption).foregroundStyle(.secondary)
                             Picker("外观", selection: $appTheme) {
                                 Text("跟随系统").tag(0); Text("浅色").tag(1); Text("深色").tag(2)
                             }.pickerStyle(.segmented)
+                            
+                            HStack {
+                                Text("主题强调色").font(.caption).foregroundStyle(.secondary)
+                                Spacer()
+                                ColorPicker("", selection: Binding(
+                                    get: { Color(hex: accentColorHex) },
+                                    set: { accentColorHex = $0.toHex() ?? "#007AFF" }
+                                ))
+                                .labelsHidden()
+                            }
                         }
                         .padding(20).background { RoundedRectangle(cornerRadius: 20).fill(colorScheme == .dark ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.white.opacity(0.8))) }
                         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous)).overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.primary.opacity(0.05), lineWidth: 1))
@@ -142,13 +156,8 @@ struct SettingsView: View {
                         // 数据统计
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Token 用量统计").font(.caption).foregroundStyle(.secondary)
-                            HStack {
-                                Text("输入: \(totalPromptTokens)")
-                                Spacer()
-                                Text("输出: \(totalCompletionTokens)")
-                            }.font(.footnote).foregroundStyle(.primary)
-                            Text("预估总花费: 约 ¥\(String(format: "%.4f", Double(totalPromptTokens) * 0.000001 + Double(totalCompletionTokens) * 0.000002))")
-                                .font(.caption2).foregroundStyle(.secondary)
+                            HStack { Text("输入: \(totalPromptTokens)"); Spacer(); Text("输出: \(totalCompletionTokens)") }.font(.footnote).foregroundStyle(.primary)
+                            Text("预估总花费: 约 ¥\(String(format: "%.4f", Double(totalPromptTokens) * 0.000001 + Double(totalCompletionTokens) * 0.000002))").font(.caption2).foregroundStyle(.secondary)
                         }
                         .padding(20).background { RoundedRectangle(cornerRadius: 20).fill(colorScheme == .dark ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.white.opacity(0.8))) }
                         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous)).overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.primary.opacity(0.05), lineWidth: 1))
@@ -156,12 +165,16 @@ struct SettingsView: View {
                         // API 配置
                         VStack(spacing: 16) {
                             VStack(alignment: .leading, spacing: 6) {
-                                Text("DeepSeek API Key").font(.caption).foregroundStyle(.secondary)
+                                Text("DeepSeek/自定义 API Key").font(.caption).foregroundStyle(.secondary)
                                 SecureField("sk-...", text: $apiKey).textInputAutocapitalization(.never).autocorrectionDisabled().padding(12).background(Color.primary.opacity(0.04)).clipShape(RoundedRectangle(cornerRadius: 10))
                             }
                             VStack(alignment: .leading, spacing: 6) {
-                                Text("DeepSeek Base URL").font(.caption).foregroundStyle(.secondary)
+                                Text("Base URL (兼容 OpenAI 格式)").font(.caption).foregroundStyle(.secondary)
                                 TextField("https://api.deepseek.com", text: $baseURL).textInputAutocapitalization(.never).autocorrectionDisabled().padding(12).background(Color.primary.opacity(0.04)).clipShape(RoundedRectangle(cornerRadius: 10))
+                            }
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("自定义模型名称 (如 glm-4, moonshot-v1-8k，留空则默认)").font(.caption).foregroundStyle(.secondary)
+                                TextField("输入模型名", text: $customModelName).textInputAutocapitalization(.never).autocorrectionDisabled().padding(12).background(Color.primary.opacity(0.04)).clipShape(RoundedRectangle(cornerRadius: 10))
                             }
                             VStack(alignment: .leading, spacing: 6) {
                                 Text("Tavily 搜索 API Key (可选)").font(.caption).foregroundStyle(.secondary)
@@ -200,5 +213,16 @@ struct SettingsView: View {
                 tavilyKey = UserDefaults.standard.string(forKey: "tavilyApiKey") ?? ""
             }
         }
+    }
+}
+
+// 扩展 Color 转 Hex
+extension Color {
+    func toHex() -> String? {
+        let uic = UIColor(self)
+        guard let components = uic.cgColor.components, components.count >= 3 else { return nil }
+        let r = Float(components[0]), g = Float(components[1]), b = Float(components[2])
+        let hex = String(format: "#%02lX%02lX%02lX", lroundf(r * 255), lroundf(g * 255), lroundf(b * 255))
+        return hex
     }
 }
