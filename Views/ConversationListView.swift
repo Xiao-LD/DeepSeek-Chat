@@ -91,11 +91,11 @@ struct ConversationListView: View {
     
     private func generateImage(for conv: Conversation) {
         let renderer = ImageRenderer(content: ShareImageView(conversation: conv))
-        renderer.scale = 3.0 // 高清
+        renderer.scale = 3.0
         if let uiImage = renderer.uiImage {
             shareImage = uiImage
             showShareSheet = true
-            UIImpactFeedbackGenerator(style: .success).impactOccurred()
+            UINotificationFeedbackGenerator().notificationOccurred(.success) // 🔥 修复：使用 Notification
         }
     }
     private func reload() { conversations = StorageManager.shared.loadAll() }
