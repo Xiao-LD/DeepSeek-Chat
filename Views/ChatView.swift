@@ -22,9 +22,21 @@ struct ChatView: View {
     
     @State private var selectedImage: UIImage?
     @State private var photoItem: PhotosPickerItem?
+    
+    // 🔥 监听全局激活的模型和自定义列表
+    @AppStorage("customModels") private var customModels: String = ""
+    @AppStorage("activeModelName") private var activeModelName: String = ""
 
     init(conversation: Conversation) {
         _viewModel = StateObject(wrappedValue: ChatViewModel(conversation: conversation))
+    }
+    
+    // 顶部按钮显示的名字
+    var currentModelDisplayName: String {
+        if !activeModelName.isEmpty {
+            return activeModelName
+        }
+        return viewModel.conversation.model == .chat ? "DeepSeek Flash" : "DeepSeek Reason"
     }
 
     var body: some View {
@@ -86,17 +98,40 @@ struct ChatView: View {
                             
                             Spacer()
                             
+                            // 🔥 动态菜单
                             Menu {
-                                Button { viewModel.changeModel(to: .chat) } label: { Label("DeepSeek V3 (极速)", systemImage: "bolt.fill") }
-                                Button { viewModel.changeModel(to: .reasoner) } label: { Label("DeepSeek R1 (推理)", systemImage: "brain.head.profile") }
+                                Button { 
+                                    activeModelName = ""
+                                    viewModel.changeModel(to: .chat) 
+                                } label: { Label("DeepSeek V3 (极速)", systemImage: "bolt.fill") }
+                                
+                                Button { 
+                                    activeModelName = ""
+                                    viewModel.changeModel(to: .reasoner) 
+                                } label: { Label("DeepSeek R1 (推理)", systemImage: "brain.head.profile") }
+                                
+                                let customList = customModels.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+                                if !customList.isEmpty {
+                                    Section("第三方模型") {
+                                        ForEach(customList, id: \.self) { modelName in
+                                            Button {
+                                                activeModelName = modelName
+                                                viewModel.changeModel(to: .chat) // 借用枚举触发保存
+                                            } label: {
+                                                Label(modelName, systemImage: "star.circle")
+                                            }
+                                        }
+                                    }
+                                }
+                                
                                 Section("工具") {
                                     Button { showAutoGenDialog = true } label: { Label("双模型辩论", systemImage: "bubble.left.and.bubble.right") }
                                     Button { tempPrompt = viewModel.conversation.systemPrompt; showPromptDialog = true } label: { Label("角色设定", systemImage: "person.text.rectangle") }
                                 }
                             } label: {
-                                Text(viewModel.conversation.model == .chat ? "DeepSeek Flash" : "DeepSeek Reason")
+                                Text(currentModelDisplayName)
                                     .font(.system(size: 16, weight: .bold))
-                                    .foregroundStyle(.primary) // 🔥 移除系统默认蓝色
+                                    .foregroundStyle(.primary)
                                     .padding(.horizontal, 20).padding(.vertical, 12)
                                     .glassEffect(.regular.interactive(), in: .capsule)
                             }
@@ -106,7 +141,7 @@ struct ChatView: View {
                             Button { viewModel.regenerate() } label: {
                                 Image(systemName: "arrow.clockwise")
                                     .font(.system(size: 18, weight: .bold))
-                                    .foregroundStyle(.primary) // 🔥 移除系统默认蓝色
+                                    .foregroundStyle(.primary)
                                     .frame(width: 44, height: 44)
                                     .glassEffect(.regular.interactive(), in: .circle)
                             }
@@ -137,8 +172,9 @@ struct ChatView: View {
                     
                     GlassEffectContainer(spacing: 8) {
                         HStack {
-                            // 🔥 思考按钮：激活时用纯黑/纯白，不用蓝色
                             Button {
+                                // 这里的“思考”按钮就是快捷切换回官方 R1 和 V3
+                                activeModelName = "" 
                                 viewModel.changeModel(to: viewModel.conversation.model == .reasoner ? .chat : .reasoner)
                             } label: {
                                 HStack(spacing: 4) {
@@ -151,7 +187,6 @@ struct ChatView: View {
                                 .glassEffect(viewModel.conversation.model == .reasoner ? .regular.tint(colorScheme == .dark ? .white : .black).interactive() : .regular.interactive(), in: .capsule)
                             }
                             
-                            // 🔥 搜索按钮：纯黑/白
                             Button {} label: {
                                 HStack(spacing: 4) {
                                     Image(systemName: "globe")
@@ -171,7 +206,7 @@ struct ChatView: View {
                             } label: {
                                 Image(systemName: "plus")
                                     .font(.system(size: 20))
-                                    .foregroundStyle(.primary) // 🔥 移除蓝色
+                                    .foregroundStyle(.primary)
                                     .frame(width: 36, height: 36)
                                     .glassEffect(.regular.interactive(), in: .circle)
                             }
@@ -187,7 +222,6 @@ struct ChatView: View {
                                         .glassEffect(speech.isRecording ? .regular.tint(.red).interactive() : .regular.interactive(), in: .circle)
                                 }
                             } else {
-                                // 🔥 发送按钮：激活时用纯黑/纯白
                                 Button {
                                     var b64: String? = nil
                                     if let img = selectedImage { b64 = img.jpegData(compressionQuality: 0.5)?.base64EncodedString() }
