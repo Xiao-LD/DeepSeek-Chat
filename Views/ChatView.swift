@@ -5,7 +5,7 @@ struct ChatView: View {
     @State private var input = ""
     @FocusState private var focused: Bool
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.colorScheme) var colorScheme // 获取系统主题
+    @Environment(\.colorScheme) var colorScheme
 
     init(conversation: Conversation) {
         _viewModel = StateObject(wrappedValue: ChatViewModel(conversation: conversation))
@@ -48,7 +48,6 @@ struct ChatView: View {
                         .padding(.horizontal, 16)
                         .padding(.vertical, 12)
                         .background {
-                            // 输入框明暗自适应
                             RoundedRectangle(cornerRadius: 24).fill(colorScheme == .dark ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.white))
                         }
                         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
@@ -75,7 +74,7 @@ struct ChatView: View {
                                     .fill(
                                         viewModel.isStreaming ? Color.red.opacity(0.8) :
                                         (input.trimmingCharacters(in: .whitespaces).isEmpty
-                                            ? (colorScheme == .dark ? Color.gray.opacity(0.5) : Color.black.opacity(0.1)) // 浅色下未激活变淡灰
+                                            ? (colorScheme == .dark ? Color.gray.opacity(0.5) : Color.black.opacity(0.1))
                                             : Color.blue)
                                     )
                             }
@@ -101,7 +100,7 @@ struct ChatView: View {
                         .font(.system(size: 16, weight: .bold))
                         .foregroundStyle(.primary)
                 }
-                .buttonStyle(GlassButtonStyle()) // 应用新的自适应按钮
+                .buttonStyle(GlassButtonStyle())
             }
             
             ToolbarItem(placement: .navigationBarTrailing) {
@@ -141,6 +140,8 @@ struct ChatView: View {
                     .foregroundStyle(.primary)
             }
         }
-        .toolbarBackground(.hidden, for: .navigationBar)
+        // 🔥 核心改动：开启系统导航栏的滚动高斯模糊
+        .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
     }
 }
