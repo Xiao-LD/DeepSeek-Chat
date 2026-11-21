@@ -2,15 +2,14 @@ import SwiftUI
 
 @main
 struct DeepSeekChatApp: App {
-    // 监听主题设置：0 = 跟随系统, 1 = 浅色, 2 = 深色
     @AppStorage("appTheme") private var appTheme: Int = 0
+    @AppStorage("accentColorHex") private var accentColorHex: String = "#007AFF" // 默认蓝色
     
     var body: some Scene {
         WindowGroup {
             ConversationListView()
-                .preferredColorScheme(
-                    appTheme == 1 ? .light : (appTheme == 2 ? .dark : nil)
-                )
+                .preferredColorScheme(appTheme == 1 ? .light : (appTheme == 2 ? .dark : nil))
+                .tint(Color(hex: accentColorHex)) // 全局应用主题色
         }
     }
 }
