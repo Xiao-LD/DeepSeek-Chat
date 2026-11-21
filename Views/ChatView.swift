@@ -63,11 +63,11 @@ struct ChatView: View {
                 .onAppear {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { proxy.scrollTo("BOTTOM_ANCHOR", anchor: .bottom) }
                 }
-                .onChange(of: viewModel.conversation.messages.last?.content) { _ in
+                // 🔥 修复：使用 iOS 17+ 的双参数 onChange 适配并发检查
+                .onChange(of: viewModel.conversation.messages.last?.content) { _, _ in
                     guard let last = viewModel.conversation.messages.last else { return }
                     if !showScrollToBottom { withAnimation { proxy.scrollTo(last.id, anchor: .bottom) } }
                 }
-                // 🔥 修复：把回到底部的按钮往下挪，贴紧输入框上方
                 .overlay(alignment: .bottomTrailing) {
                     if showScrollToBottom {
                         Button { withAnimation { proxy.scrollTo("BOTTOM_ANCHOR", anchor: .bottom) } } label: {
@@ -78,7 +78,6 @@ struct ChatView: View {
                 }
             }
             
-            // 顶部悬浮按钮组
             VStack(spacing: 0) {
                 GlassEffectContainer(spacing: 16) {
                     HStack {
@@ -115,10 +114,9 @@ struct ChatView: View {
                         }
                     }
                     .padding(.horizontal, 16)
-                    .padding(.top, 10) // 🔥 整体上移
+                    .padding(.top, 10)
                 }
                 
-                // 🔥 修复模糊问题：加一层高度为 30 的背景渐隐，配合上方的玻璃，滑上去文字直接消失
                 LinearGradient(
                     colors: [(colorScheme == .dark ? Color.black : Color.white), (colorScheme == .dark ? Color.black : Color.white).opacity(0)],
                     startPoint: .top, endPoint: .bottom
@@ -206,12 +204,29 @@ struct ChatView: View {
                 if let data = try? await newItem?.loadTransferable(type: Data.self), let uiImg = UIImage(data: data) { selectedImage = uiImg }
             }
         }
-        .onChange(of: speech.transcribedText) { _, newText in if !newText.isEmpty { input = newText } }
+        // 🔥 修复：语音转文字的新版 onChange
+        .onChange(of: speech.transcribedText) { _, newText in 
+            if !newText.isEmpty { input = newText }
+        }
+        // 🔥 修复：FileImporter 里的并发线程崩溃问题
         .fileImporter(isPresented: $showFileImporter, allowedContentTypes: [.pdf, .plainText]) { result in
-            if let url = try? result.get(), url.startAccessingSecurityScopedResource() {
-                defer { url.stopAccessingSecurityScopedResource() }
-                if url.pathExtension.lowercased() == "pdf", let doc = PDFDocument(url: url) { viewModel.loadDocument(text: doc.string ?? ""); viewModel.isRagEnabled = true }
-                else if let text = try? String(contentsOf: url) { viewModel.loadDocument(text: text); viewModel.isRagEnabled = true }
+            Task { @MainActor in
+                do {
+                    let url = try result.get()
+                    guard url.startAccessingSecurityScopedResource() else { return }
+                    defer { url.stopAccessingSecurityScopedResource() }
+                    
+                    if url.pathExtension.lowercased() == "pdf", let doc = PDFDocument(url: url) {
+                        viewModel.loadDocument(text: doc.string ?? "")
+                        viewModel.isRagEnabled = true
+                    } else {
+                        let text = try String(contentsOf: url, encoding: .utf8)
+                        viewModel.loadDocument(text: text)
+                        viewModel.isRagEnabled = true
+                    }
+                } catch {
+                    print("文件读取失败")
+                }
             }
         }
         .alert("角色设定", isPresented: $showPromptDialog) { TextField("输入指令", text: $tempPrompt, axis: .vertical); Button("保存") { viewModel.conversation.systemPrompt = tempPrompt } }
