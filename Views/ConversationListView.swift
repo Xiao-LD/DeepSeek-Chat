@@ -10,7 +10,6 @@ struct GlassBackground: View {
                 startPoint: .top, endPoint: .bottom
             ).ignoresSafeArea()
         } else {
-            // 浅色模式：更干净透亮的白灰渐变
             LinearGradient(
                 colors: [Color(red: 0.98, green: 0.98, blue: 1.0), Color(red: 0.92, green: 0.94, blue: 0.98)],
                 startPoint: .top, endPoint: .bottom
@@ -19,7 +18,6 @@ struct GlassBackground: View {
     }
 }
 
-// 核心修复：完全适配浅色/深色的玻璃按钮样式
 struct GlassButtonStyle: ButtonStyle {
     @Environment(\.colorScheme) var colorScheme
     
@@ -28,16 +26,15 @@ struct GlassButtonStyle: ButtonStyle {
             .padding(10)
             .background {
                 if colorScheme == .dark {
-                    Circle().fill(.ultraThinMaterial) // 深色模式用材质
+                    Circle().fill(.ultraThinMaterial)
                 } else {
-                    Circle().fill(Color.white) // 浅色模式用纯白，避免发灰
+                    Circle().fill(Color.white)
                 }
             }
             .clipShape(Circle())
             .overlay(
                 Circle().stroke(Color.primary.opacity(colorScheme == .dark ? 0.15 : 0.05), lineWidth: 1)
             )
-            // 浅色模式下阴影极淡，深色模式保留发光感
             .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.2 : 0.05), radius: configuration.isPressed ? 2 : 6, x: 0, y: configuration.isPressed ? 1 : 3)
             .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
             .animation(.easeOut(duration: 0.2), value: configuration.isPressed)
@@ -73,7 +70,6 @@ struct ConversationListView: View {
                                         .foregroundStyle(.tertiary)
                                 }
                                 .padding()
-                                // 列表卡片背景自适应
                                 .background {
                                     if colorScheme == .dark {
                                         RoundedRectangle(cornerRadius: 16).fill(.ultraThinMaterial)
@@ -132,7 +128,9 @@ struct ConversationListView: View {
                 SettingsView()
             }
             .onAppear(perform: reload)
-            .toolbarBackground(.hidden, for: .navigationBar)
+            // 🔥 统一加上滚动高斯模糊
+            .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
         }
     }
 
@@ -141,7 +139,6 @@ struct ConversationListView: View {
     }
 }
 
-// 设置界面同样适配浅色
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) var colorScheme
@@ -232,7 +229,9 @@ struct SettingsView: View {
                         .overlay(Capsule().stroke(Color.primary.opacity(0.05), lineWidth: 1))
                 }
             }
-            .toolbarBackground(.hidden, for: .navigationBar)
+            // 🔥 设置页也加上
+            .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .onAppear {
                 apiKey = KeychainHelper.shared.read(
                     service: "DeepSeekChat", account: "apiKey"
