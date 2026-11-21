@@ -1,8 +1,11 @@
 import SwiftUI
+import AVFoundation
+import UIKit
 
 struct MessageBubbleView: View {
     let message: ChatMessage
-
+    @State private var synthesizer = AVSpeechSynthesizer()
+    
     var body: some View {
         HStack {
             if message.role == .user { Spacer(minLength: 40) }
@@ -14,28 +17,42 @@ struct MessageBubbleView: View {
 
                 if !message.content.isEmpty {
                     MarkdownText(markdown: message.content)
-                        .textSelection(.enabled)
                 } else if message.isStreaming && (message.reasoningContent ?? "").isEmpty {
-                    ProgressView()
-                        .controlSize(.small)
+                    ProgressView().controlSize(.small)
                 }
             }
             .padding(12)
             .background {
                 if message.role == .user {
-                    // 用户气泡：带点蓝调的毛玻璃
                     Color.blue.opacity(0.25).background(.ultraThinMaterial)
                 } else {
-                    // AI 气泡：深色磨砂玻璃
                     Color.black.opacity(0.15).background(.regularMaterial)
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay(
-                // 增加一圈微弱的高光边框，更有玻璃感
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .stroke(Color.white.opacity(0.15), lineWidth: 1)
             )
+            // 🔥 长按菜单
+            .contextMenu {
+                Button {
+                    UIPasteboard.general.string = message.content
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                } label: {
+                    Label("复制文本", systemImage: "doc.on.doc")
+                }
+                
+                if message.role == .assistant {
+                    Button {
+                        let utterance = AVSpeechUtterance(string: message.content)
+                        utterance.voice = AVSpeechSynthesisVoice(language: "zh-CN")
+                        synthesizer.speak(utterance)
+                    } label: {
+                        Label("朗读", systemImage: "play.circle")
+                    }
+                }
+            }
 
             if message.role != .user { Spacer(minLength: 40) }
         }
