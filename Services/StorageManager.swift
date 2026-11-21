@@ -1,13 +1,11 @@
 import Foundation
 
-final class StorageManager {
-
+// 🔥 加上 @unchecked Sendable
+final class StorageManager: @unchecked Sendable {
     static let shared = StorageManager()
 
     private var directory: URL? {
-        guard let docs = FileManager.default.urls(
-            for: .documentDirectory, in: .userDomainMask
-        ).first else { return nil }
+        guard let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return nil }
         let dir = docs.appendingPathComponent("Conversations", isDirectory: true)
         if !FileManager.default.fileExists(atPath: dir.path) {
             try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -28,14 +26,9 @@ final class StorageManager {
     }
 
     func loadAll() -> [Conversation] {
-        guard let dir = directory,
-              let files = try? FileManager.default.contentsOfDirectory(
-                  at: dir, includingPropertiesForKeys: nil
-              ) else { return [] }
-
+        guard let dir = directory, let files = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) else { return [] }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-
         return files
             .filter { $0.pathExtension == "json" }
             .compactMap { try? decoder.decode(Conversation.self, from: Data(contentsOf: $0)) }
