@@ -79,6 +79,7 @@ struct ChatView: View {
                             Button { dismiss() } label: {
                                 Image(systemName: "chevron.left")
                                     .font(.system(size: 18, weight: .bold))
+                                    .foregroundStyle(.primary)
                                     .frame(width: 44, height: 44)
                                     .glassEffect(.regular.interactive(), in: .circle)
                             }
@@ -95,6 +96,7 @@ struct ChatView: View {
                             } label: {
                                 Text(viewModel.conversation.model == .chat ? "DeepSeek Flash" : "DeepSeek Reason")
                                     .font(.system(size: 16, weight: .bold))
+                                    .foregroundStyle(.primary) // 🔥 移除系统默认蓝色
                                     .padding(.horizontal, 20).padding(.vertical, 12)
                                     .glassEffect(.regular.interactive(), in: .capsule)
                             }
@@ -104,6 +106,7 @@ struct ChatView: View {
                             Button { viewModel.regenerate() } label: {
                                 Image(systemName: "arrow.clockwise")
                                     .font(.system(size: 18, weight: .bold))
+                                    .foregroundStyle(.primary) // 🔥 移除系统默认蓝色
                                     .frame(width: 44, height: 44)
                                     .glassEffect(.regular.interactive(), in: .circle)
                             }
@@ -112,7 +115,7 @@ struct ChatView: View {
                     .padding(.horizontal, 16)
                     .padding(.top, 10)
                     .padding(.bottom, 10)
-                    .background(.ultraThinMaterial)
+                    .background((colorScheme == .dark ? Color.black : Color.white).opacity(0.85))
                 }
             }
         }
@@ -134,7 +137,7 @@ struct ChatView: View {
                     
                     GlassEffectContainer(spacing: 8) {
                         HStack {
-                            // 🔥 修复 1：思考按钮开启时，文字和图标强制变白
+                            // 🔥 思考按钮：激活时用纯黑/纯白，不用蓝色
                             Button {
                                 viewModel.changeModel(to: viewModel.conversation.model == .reasoner ? .chat : .reasoner)
                             } label: {
@@ -143,16 +146,20 @@ struct ChatView: View {
                                     Text(viewModel.conversation.model == .reasoner ? "思考·已开启" : "思考")
                                 }
                                 .font(.system(size: 14, weight: .medium))
-                                .foregroundStyle(viewModel.conversation.model == .reasoner ? .white : .primary) // 修改了这里
+                                .foregroundStyle(viewModel.conversation.model == .reasoner ? (colorScheme == .dark ? .black : .white) : .primary)
                                 .padding(.horizontal, 12).padding(.vertical, 8)
-                                .glassEffect(viewModel.conversation.model == .reasoner ? .regular.tint(.blue).interactive() : .regular.interactive(), in: .capsule)
+                                .glassEffect(viewModel.conversation.model == .reasoner ? .regular.tint(colorScheme == .dark ? .white : .black).interactive() : .regular.interactive(), in: .capsule)
                             }
                             
+                            // 🔥 搜索按钮：纯黑/白
                             Button {} label: {
                                 HStack(spacing: 4) {
                                     Image(systemName: "globe")
                                     Text("搜索")
-                                }.font(.system(size: 14, weight: .medium)).padding(.horizontal, 12).padding(.vertical, 8)
+                                }
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundStyle(.primary)
+                                .padding(.horizontal, 12).padding(.vertical, 8)
                                 .glassEffect(.regular.interactive(), in: .capsule)
                             }
                             
@@ -162,30 +169,36 @@ struct ChatView: View {
                                 PhotosPicker(selection: $photoItem, matching: .images) { Label("上传图片", systemImage: "photo") }
                                 Button { showFileImporter = true } label: { Label("读取文档", systemImage: "doc.text") }
                             } label: {
-                                Image(systemName: "plus").font(.system(size: 20)).frame(width: 36, height: 36)
+                                Image(systemName: "plus")
+                                    .font(.system(size: 20))
+                                    .foregroundStyle(.primary) // 🔥 移除蓝色
+                                    .frame(width: 36, height: 36)
                                     .glassEffect(.regular.interactive(), in: .circle)
                             }
                             
                             if input.isEmpty && selectedImage == nil {
-                                // 🔥 修复 2：录音按钮激活时，图标强制变白，配合红色背景
                                 Button {
                                     if speech.isRecording { speech.stopRecording() } else { speech.startRecording() }
                                 } label: {
                                     Image(systemName: "waveform")
                                         .font(.system(size: 20))
-                                        .foregroundStyle(speech.isRecording ? .white : .primary) // 修改了这里
+                                        .foregroundStyle(speech.isRecording ? .white : .primary)
                                         .frame(width: 36, height: 36)
                                         .glassEffect(speech.isRecording ? .regular.tint(.red).interactive() : .regular.interactive(), in: .circle)
                                 }
                             } else {
+                                // 🔥 发送按钮：激活时用纯黑/纯白
                                 Button {
                                     var b64: String? = nil
                                     if let img = selectedImage { b64 = img.jpegData(compressionQuality: 0.5)?.base64EncodedString() }
                                     viewModel.send(input, imageBase64: b64, useWebSearch: false)
                                     input = ""; selectedImage = nil
                                 } label: {
-                                    Image(systemName: "arrow.up").font(.system(size: 18, weight: .bold)).frame(width: 36, height: 36)
-                                        .glassEffect(.regular.tint(.blue).interactive(), in: .circle)
+                                    Image(systemName: "arrow.up")
+                                        .font(.system(size: 18, weight: .bold))
+                                        .foregroundStyle(colorScheme == .dark ? .black : .white)
+                                        .frame(width: 36, height: 36)
+                                        .glassEffect(.regular.tint(colorScheme == .dark ? .white : .black).interactive(), in: .circle)
                                 }
                             }
                         }
@@ -197,7 +210,6 @@ struct ChatView: View {
                 
                 Text("回答由 AI 生成，仅供参考").font(.system(size: 10)).foregroundStyle(.tertiary).padding(.bottom, 8)
             }
-            .background(.ultraThinMaterial)
         }
         .onChange(of: photoItem) { _, newItem in
             Task {
@@ -222,9 +234,7 @@ struct ChatView: View {
                         viewModel.loadDocument(text: text)
                         viewModel.isRagEnabled = true
                     }
-                } catch {
-                    print("文件读取失败")
-                }
+                } catch {}
             }
         }
         .alert("角色设定", isPresented: $showPromptDialog) { TextField("输入指令", text: $tempPrompt, axis: .vertical); Button("保存") { viewModel.conversation.systemPrompt = tempPrompt } }
