@@ -13,25 +13,22 @@ struct ChatCompletionRequest: Codable {
     }
 }
 
-// 🔥 升级：支持多模态图文混排
+// 🔥 彻底修复多模态结构，严格匹配 OpenAI/DeepSeek 格式
 struct APIMessage: Codable {
     let role: String
     let content: Content
     
-    // 如果只是普通文本
     init(role: String, content: String) {
         self.role = role
         self.content = .text(content)
     }
     
-    // 如果有图片
     init(role: String, text: String, imageBase64: String?) {
         self.role = role
         if let img = imageBase64 {
-            self.content = .multiPart([
-                ["type": "text", "text": text],
-                ["type": "image_url", "image_url": ["url": "data:image/jpeg;base64,\(img)"]]
-            ])
+            let textPart = Content.ContentPart(type: "text", text: text, image_url: nil)
+            let imagePart = Content.ContentPart(type: "image_url", text: nil, image_url: Content.ContentPart.ImageUrl(url: "data:image/jpeg;base64,\(img)"))
+            self.content = .multiPart([textPart, imagePart])
         } else {
             self.content = .text(text)
         }
@@ -39,15 +36,25 @@ struct APIMessage: Codable {
     
     enum Content: Codable {
         case text(String)
-        case multiPart([[String: String]])
+        case multiPart([ContentPart])
+        
+        struct ContentPart: Codable {
+            let type: String
+            let text: String?
+            let image_url: ImageUrl?
+            
+            struct ImageUrl: Codable {
+                let url: String
+            }
+        }
         
         func encode(to encoder: Encoder) throws {
             var container = encoder.singleValueContainer()
             switch self {
             case .text(let str):
                 try container.encode(str)
-            case .multiPart(let arr):
-                try container.encode(arr)
+            case .multiPart(let parts):
+                try container.encode(parts)
             }
         }
         
