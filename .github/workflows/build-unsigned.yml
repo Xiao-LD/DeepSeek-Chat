@@ -1,11 +1,10 @@
 name: Build Unsigned IPA
-
 on:
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: macos-15
+    runs-on: macos-26 # 🔥 强制使用最新的 macOS 26 以获取 Xcode 26 SDK
     steps:
       - uses: actions/checkout@v4
 
