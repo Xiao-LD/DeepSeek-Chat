@@ -1,10 +1,10 @@
 import Foundation
 
-class WebSearchService {
+// 🔥 加上 @unchecked Sendable
+final class WebSearchService: @unchecked Sendable {
     static let shared = WebSearchService()
     
     func search(query: String) async throws -> String {
-        // 从 UserDefaults 获取用户在设置里填写的 Tavily Key
         guard let apiKey = UserDefaults.standard.string(forKey: "tavilyApiKey"), !apiKey.isEmpty else {
             throw NSError(domain: "Search", code: 401, userInfo: [NSLocalizedDescriptionKey: "请先在设置中配置 Tavily 搜索 API Key"])
         }
@@ -28,7 +28,6 @@ class WebSearchService {
         
         if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
            let results = json["results"] as? [[String: Any]] {
-            
             var searchContext = "以下是联网搜索到的最新背景信息，请结合这些信息回答我的问题：\n\n"
             for res in results {
                 if let title = res["title"] as? String, let content = res["content"] as? String {
@@ -37,7 +36,6 @@ class WebSearchService {
             }
             return searchContext
         }
-        
         return ""
     }
 }
