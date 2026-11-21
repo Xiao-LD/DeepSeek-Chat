@@ -28,9 +28,10 @@ struct ChatView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .top) {
+        ZStack {
             (colorScheme == .dark ? Color.black : Color.white).ignoresSafeArea()
             
+            // 核心修改：聊天列表铺满，使用 safeAreaInset 处理顶部
             ScrollViewReader { proxy in
                 ScrollView {
                     if viewModel.conversation.messages.isEmpty {
@@ -53,17 +54,14 @@ struct ChatView: View {
                                 .onDisappear { showScrollToBottom = true }
                         }
                         .padding(.horizontal, 16)
-                        .padding(.top, 100)
+                        .padding(.top, 10)
                         .padding(.bottom, 20)
                     }
                 }
                 .scrollDismissesKeyboard(.interactively)
-                .scrollEdgeEffectStyle(.soft, for: .top)
-                .scrollEdgeEffectStyle(.soft, for: .bottom)
                 .onAppear {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { proxy.scrollTo("BOTTOM_ANCHOR", anchor: .bottom) }
                 }
-                // 🔥 修复：使用 iOS 17+ 的双参数 onChange 适配并发检查
                 .onChange(of: viewModel.conversation.messages.last?.content) { _, _ in
                     guard let last = viewModel.conversation.messages.last else { return }
                     if !showScrollToBottom { withAnimation { proxy.scrollTo(last.id, anchor: .bottom) } }
@@ -76,56 +74,53 @@ struct ChatView: View {
                         }.padding(.trailing, 20).padding(.bottom, 16).transition(.scale.combined(with: .opacity))
                     }
                 }
-            }
-            
-            VStack(spacing: 0) {
-                GlassEffectContainer(spacing: 16) {
-                    HStack {
-                        Button { dismiss() } label: {
-                            Image(systemName: "chevron.left")
-                                .font(.system(size: 18, weight: .bold))
-                                .frame(width: 44, height: 44)
-                                .glassEffect(.regular.interactive(), in: .circle)
-                        }
-                        
-                        Spacer()
-                        
-                        Menu {
-                            Button { viewModel.changeModel(to: .chat) } label: { Label("DeepSeek V3 (极速)", systemImage: "bolt.fill") }
-                            Button { viewModel.changeModel(to: .reasoner) } label: { Label("DeepSeek R1 (推理)", systemImage: "brain.head.profile") }
-                            Section("工具") {
-                                Button { showAutoGenDialog = true } label: { Label("双模型辩论", systemImage: "bubble.left.and.bubble.right") }
-                                Button { tempPrompt = viewModel.conversation.systemPrompt; showPromptDialog = true } label: { Label("角色设定", systemImage: "person.text.rectangle") }
+                // 🔥 核心修复：顶部栏加入安全区，配合背景毛玻璃，滑动时文字会直接钻进模糊层下面
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    GlassEffectContainer(spacing: 16) {
+                        HStack {
+                            Button { dismiss() } label: {
+                                Image(systemName: "chevron.left")
+                                    .font(.system(size: 18, weight: .bold))
+                                    .frame(width: 44, height: 44)
+                                    .glassEffect(.regular.interactive(), in: .circle)
                             }
-                        } label: {
-                            Text(viewModel.conversation.model == .chat ? "DeepSeek Flash" : "DeepSeek Reason")
-                                .font(.system(size: 16, weight: .bold))
-                                .padding(.horizontal, 20).padding(.vertical, 12)
-                                .glassEffect(.regular.interactive(), in: .capsule)
-                        }
-                        
-                        Spacer()
-                        
-                        Button { viewModel.regenerate() } label: {
-                            Image(systemName: "arrow.clockwise")
-                                .font(.system(size: 18, weight: .bold))
-                                .frame(width: 44, height: 44)
-                                .glassEffect(.regular.interactive(), in: .circle)
+                            
+                            Spacer()
+                            
+                            Menu {
+                                Button { viewModel.changeModel(to: .chat) } label: { Label("DeepSeek V3 (极速)", systemImage: "bolt.fill") }
+                                Button { viewModel.changeModel(to: .reasoner) } label: { Label("DeepSeek R1 (推理)", systemImage: "brain.head.profile") }
+                                Section("工具") {
+                                    Button { showAutoGenDialog = true } label: { Label("双模型辩论", systemImage: "bubble.left.and.bubble.right") }
+                                    Button { tempPrompt = viewModel.conversation.systemPrompt; showPromptDialog = true } label: { Label("角色设定", systemImage: "person.text.rectangle") }
+                                }
+                            } label: {
+                                Text(viewModel.conversation.model == .chat ? "DeepSeek Flash" : "DeepSeek Reason")
+                                    .font(.system(size: 16, weight: .bold))
+                                    .padding(.horizontal, 20).padding(.vertical, 12)
+                                    .glassEffect(.regular.interactive(), in: .capsule)
+                            }
+                            
+                            Spacer()
+                            
+                            Button { viewModel.regenerate() } label: {
+                                Image(systemName: "arrow.clockwise")
+                                    .font(.system(size: 18, weight: .bold))
+                                    .frame(width: 44, height: 44)
+                                    .glassEffect(.regular.interactive(), in: .circle)
+                            }
                         }
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 10)
+                    .padding(.bottom, 10)
+                    // 添加真正的模糊底材
+                    .background(.ultraThinMaterial)
                 }
-                
-                LinearGradient(
-                    colors: [(colorScheme == .dark ? Color.black : Color.white), (colorScheme == .dark ? Color.black : Color.white).opacity(0)],
-                    startPoint: .top, endPoint: .bottom
-                )
-                .frame(height: 30)
-                .allowsHitTesting(false)
             }
         }
         .navigationBarHidden(true)
+        // 底部输入框仍然使用 safeAreaInset
         .safeAreaInset(edge: .bottom) {
             VStack(spacing: 6) {
                 if let error = viewModel.errorMessage { Text(error).font(.caption).foregroundStyle(.red) }
@@ -198,17 +193,16 @@ struct ChatView: View {
                 
                 Text("回答由 AI 生成，仅供参考").font(.system(size: 10)).foregroundStyle(.tertiary).padding(.bottom, 8)
             }
+            .background(.ultraThinMaterial) // 给底部输入区加上毛玻璃底
         }
         .onChange(of: photoItem) { _, newItem in
             Task {
                 if let data = try? await newItem?.loadTransferable(type: Data.self), let uiImg = UIImage(data: data) { selectedImage = uiImg }
             }
         }
-        // 🔥 修复：语音转文字的新版 onChange
         .onChange(of: speech.transcribedText) { _, newText in 
             if !newText.isEmpty { input = newText }
         }
-        // 🔥 修复：FileImporter 里的并发线程崩溃问题
         .fileImporter(isPresented: $showFileImporter, allowedContentTypes: [.pdf, .plainText]) { result in
             Task { @MainActor in
                 do {
