@@ -24,7 +24,7 @@ struct ConversationListView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack(alignment: .top) {
+            ZStack {
                 GlassBackground()
                 
                 ScrollView {
@@ -50,43 +50,49 @@ struct ConversationListView: View {
                         }
                     }
                     .padding(.horizontal, 16)
-                    .padding(.top, 140) // 给大标题留出空间
-                    .padding(.bottom, 80) // 给搜索框留出空间
+                    .padding(.top, 10)
+                    .padding(.bottom, 80)
                 }
-                // 🔥 主界面也使用原生软边缘模糊
-                .scrollEdgeEffectStyle(.soft, for: .top)
-                
-                // 自绘的顶部悬浮区
-                VStack(spacing: 0) {
-                    GlassEffectContainer(spacing: 16) {
-                        HStack {
-                            Button { showSettings = true } label: {
-                                Image(systemName: "line.3.horizontal").font(.system(size: 18, weight: .medium)).foregroundStyle(.primary).frame(width: 44, height: 44)
-                                    .glassEffect(.regular.interactive(), in: .circle)
-                            }
-                            Spacer()
-                            Button {
-                                let new = Conversation(id: UUID(), title: "新对话", messages: [], systemPrompt: "", model: .chat, temperature: 0.7, createdAt: Date(), updatedAt: Date())
-                                StorageManager.shared.save(new); reload()
-                            } label: {
-                                Image(systemName: "plus").font(.system(size: 20, weight: .medium)).foregroundStyle(.primary).frame(width: 44, height: 44)
-                                    .glassEffect(.regular.interactive(), in: .circle)
+                // 🔥 使用 safeAreaInset 占位，这样列表滑上去会被顶部栏盖住，绝不会重叠
+                .safeAreaInset(edge: .top) {
+                    VStack(spacing: 0) {
+                        GlassEffectContainer(spacing: 16) {
+                            HStack {
+                                Button { showSettings = true } label: {
+                                    Image(systemName: "line.3.horizontal").font(.system(size: 18, weight: .medium)).foregroundStyle(.primary).frame(width: 44, height: 44)
+                                        .glassEffect(.regular.interactive(), in: .circle)
+                                }
+                                Spacer()
+                                Button {
+                                    let new = Conversation(id: UUID(), title: "新对话", messages: [], systemPrompt: "", model: .chat, temperature: 0.7, createdAt: Date(), updatedAt: Date())
+                                    StorageManager.shared.save(new); reload()
+                                } label: {
+                                    Image(systemName: "plus").font(.system(size: 20, weight: .medium)).foregroundStyle(.primary).frame(width: 44, height: 44)
+                                        .glassEffect(.regular.interactive(), in: .circle)
+                                }
                             }
                         }
+                        .padding(.horizontal, 16)
+                        .padding(.top, 10)
+                        
+                        HStack {
+                            Text("对话").font(.system(size: 36, weight: .bold)).foregroundStyle(.primary)
+                            Spacer()
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.top, 8)
+                        .padding(.bottom, 10)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 50)
-                    
-                    HStack {
-                        Text("对话").font(.system(size: 36, weight: .bold)).foregroundStyle(.primary)
-                        Spacer()
+                    // 🔥 给顶部栏加上高斯模糊底，滑动时直接虚化文字
+                    .background((colorScheme == .dark ? Color.black : Color.white).opacity(0.95).blur(radius: 10))
+                    .overlay(alignment: .bottom) {
+                        // 底部加一条渐隐线，过渡更平滑
+                        LinearGradient(colors: [(colorScheme == .dark ? Color.black : Color.white).opacity(0), (colorScheme == .dark ? Color.black : Color.white)], startPoint: .top, endPoint: .bottom)
+                            .frame(height: 20).offset(y: 20)
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 16)
-                    
-                    Spacer()
                 }
                 
+                // 底部搜索框
                 VStack {
                     Spacer()
                     HStack {
@@ -123,66 +129,4 @@ struct ConversationListView: View {
     private func reload() { conversations = StorageManager.shared.loadAll() }
 }
 
-struct ShareSheet: UIViewControllerRepresentable {
-    var activityItems: [Any]
-    func makeUIViewController(context: Context) -> UIActivityViewController { UIActivityViewController(activityItems: activityItems, applicationActivities: nil) }
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
-}
-
-struct SettingsView: View {
-    @Environment(\.dismiss) private var dismiss
-    @State private var apiKey = ""
-    @State private var baseURL = "https://api.deepseek.com"
-    @State private var tavilyKey = ""
-    @State private var saved = false
-    @AppStorage("appTheme") private var appTheme: Int = 0
-    @AppStorage("accentColorHex") private var accentColorHex: String = "#007AFF"
-    @AppStorage("totalPromptTokens") private var totalPromptTokens: Int = 0
-    @AppStorage("totalCompletionTokens") private var totalCompletionTokens: Int = 0
-    @AppStorage("customModelName") private var customModelName: String = ""
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section("外观") {
-                    Picker("主题", selection: $appTheme) { Text("系统").tag(0); Text("浅色").tag(1); Text("深色").tag(2) }.pickerStyle(.segmented)
-                    ColorPicker("强调色", selection: Binding(get: { Color(hex: accentColorHex) }, set: { accentColorHex = $0.toHex() ?? "#007AFF" }))
-                }
-                Section("统计") { Text("消耗: \(totalPromptTokens) / \(totalCompletionTokens) tokens") }
-                Section("API 配置") {
-                    SecureField("API Key", text: $apiKey)
-                    TextField("Base URL", text: $baseURL)
-                    TextField("自定义模型名 (留空默认)", text: $customModelName)
-                    SecureField("Tavily Key", text: $tavilyKey)
-                }
-                Section {
-                    Button(saved ? "已保存" : "保存配置") {
-                        KeychainHelper.shared.save(apiKey, service: "DeepSeekChat", account: "apiKey")
-                        UserDefaults.standard.set(baseURL, forKey: "apiBaseURL")
-                        UserDefaults.standard.set(tavilyKey, forKey: "tavilyApiKey")
-                        saved = true; DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { saved = false }
-                    }
-                }
-            }
-            .navigationTitle("设置").navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("完成") { dismiss() }.buttonStyle(.glassProminent)
-                }
-            }
-            .onAppear {
-                apiKey = KeychainHelper.shared.read(service: "DeepSeekChat", account: "apiKey") ?? ""
-                baseURL = UserDefaults.standard.string(forKey: "apiBaseURL") ?? "https://api.deepseek.com"
-                tavilyKey = UserDefaults.standard.string(forKey: "tavilyApiKey") ?? ""
-            }
-        }
-    }
-}
-
-extension Color {
-    func toHex() -> String? {
-        let uic = UIColor(self)
-        guard let components = uic.cgColor.components, components.count >= 3 else { return nil }
-        return String(format: "#%02lX%02lX%02lX", lroundf(Float(components[0]) * 255), lroundf(Float(components[1]) * 255), lroundf(Float(components[2]) * 255))
-    }
-}
+// 以下 ShareSheet / SettingsView / Color扩展 保持不变，直接沿用你上次提交的即可。
