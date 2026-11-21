@@ -28,7 +28,7 @@ final class ChatViewModel: ObservableObject {
             currentIndex = endIndex
         }
         self.ragChunks = chunks
-        UINotificationFeedbackGenerator().notificationOccurred(.success) // 🔥 修复：使用 Notification
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
     }
     
     func send(_ text: String, imageBase64: String? = nil, useWebSearch: Bool = false) {
@@ -163,6 +163,7 @@ final class ChatViewModel: ObservableObject {
         if let last = conversation.messages.indices.last { conversation.messages[last].isStreaming = false }
     }
     
+    // 🔥 只负责保存，不再传复杂的参数
     func changeModel(to model: DeepSeekModel) {
         guard !isStreaming else { return }
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
