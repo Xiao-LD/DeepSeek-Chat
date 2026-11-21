@@ -31,7 +31,6 @@ struct ChatView: View {
         ZStack {
             (colorScheme == .dark ? Color.black : Color.white).ignoresSafeArea()
             
-            // 核心修改：聊天列表铺满，使用 safeAreaInset 处理顶部
             ScrollViewReader { proxy in
                 ScrollView {
                     if viewModel.conversation.messages.isEmpty {
@@ -74,7 +73,6 @@ struct ChatView: View {
                         }.padding(.trailing, 20).padding(.bottom, 16).transition(.scale.combined(with: .opacity))
                     }
                 }
-                // 🔥 核心修复：顶部栏加入安全区，配合背景毛玻璃，滑动时文字会直接钻进模糊层下面
                 .safeAreaInset(edge: .top, spacing: 0) {
                     GlassEffectContainer(spacing: 16) {
                         HStack {
@@ -114,13 +112,11 @@ struct ChatView: View {
                     .padding(.horizontal, 16)
                     .padding(.top, 10)
                     .padding(.bottom, 10)
-                    // 添加真正的模糊底材
                     .background(.ultraThinMaterial)
                 }
             }
         }
         .navigationBarHidden(true)
-        // 底部输入框仍然使用 safeAreaInset
         .safeAreaInset(edge: .bottom) {
             VStack(spacing: 6) {
                 if let error = viewModel.errorMessage { Text(error).font(.caption).foregroundStyle(.red) }
@@ -138,13 +134,17 @@ struct ChatView: View {
                     
                     GlassEffectContainer(spacing: 8) {
                         HStack {
+                            // 🔥 修复 1：思考按钮开启时，文字和图标强制变白
                             Button {
                                 viewModel.changeModel(to: viewModel.conversation.model == .reasoner ? .chat : .reasoner)
                             } label: {
                                 HStack(spacing: 4) {
                                     Image(systemName: "atom")
                                     Text(viewModel.conversation.model == .reasoner ? "思考·已开启" : "思考")
-                                }.font(.system(size: 14, weight: .medium)).padding(.horizontal, 12).padding(.vertical, 8)
+                                }
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundStyle(viewModel.conversation.model == .reasoner ? .white : .primary) // 修改了这里
+                                .padding(.horizontal, 12).padding(.vertical, 8)
                                 .glassEffect(viewModel.conversation.model == .reasoner ? .regular.tint(.blue).interactive() : .regular.interactive(), in: .capsule)
                             }
                             
@@ -167,11 +167,15 @@ struct ChatView: View {
                             }
                             
                             if input.isEmpty && selectedImage == nil {
+                                // 🔥 修复 2：录音按钮激活时，图标强制变白，配合红色背景
                                 Button {
                                     if speech.isRecording { speech.stopRecording() } else { speech.startRecording() }
                                 } label: {
-                                    Image(systemName: "waveform").font(.system(size: 20)).frame(width: 36, height: 36)
-                                        .glassEffect(.regular.tint(speech.isRecording ? .red : .clear).interactive(), in: .circle)
+                                    Image(systemName: "waveform")
+                                        .font(.system(size: 20))
+                                        .foregroundStyle(speech.isRecording ? .white : .primary) // 修改了这里
+                                        .frame(width: 36, height: 36)
+                                        .glassEffect(speech.isRecording ? .regular.tint(.red).interactive() : .regular.interactive(), in: .circle)
                                 }
                             } else {
                                 Button {
@@ -193,7 +197,7 @@ struct ChatView: View {
                 
                 Text("回答由 AI 生成，仅供参考").font(.system(size: 10)).foregroundStyle(.tertiary).padding(.bottom, 8)
             }
-            .background(.ultraThinMaterial) // 给底部输入区加上毛玻璃底
+            .background(.ultraThinMaterial)
         }
         .onChange(of: photoItem) { _, newItem in
             Task {
