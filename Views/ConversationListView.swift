@@ -97,12 +97,22 @@ struct ConversationListView: View {
                 }
             }
             .toolbar(.hidden, for: .navigationBar)
-            .sheet(isPresented: $showSettings, content: { SettingsView() })
+            // 🔥 极其严格地使用 sheet，防止并发推断报错
+            .sheet(isPresented: $showSettings, content: {
+                SettingsView()
+            })
             .onAppear(perform: reload)
             .alert("重命名", isPresented: Binding(get: { renamingConversation != nil }, set: { if !$0 { renamingConversation = nil } })) {
                 TextField("新标题", text: $newTitle)
                 Button("取消", role: .cancel) { renamingConversation = nil }
-                Button("保存") { if var conv = renamingConversation { conv.title = newTitle; StorageManager.shared.save(conv); reload() }; renamingConversation = nil }
+                Button("保存") { 
+                    if var conv = renamingConversation { 
+                        conv.title = newTitle
+                        StorageManager.shared.save(conv)
+                        reload() 
+                    }
+                    renamingConversation = nil 
+                }
             }
             .alert("保存成功", isPresented: $showSaveAlert) {
                 Button("好的", role: .cancel) { }
@@ -135,7 +145,7 @@ struct SettingsView: View {
     @AppStorage("totalPromptTokens") private var totalPromptTokens: Int = 0
     @AppStorage("totalCompletionTokens") private var totalCompletionTokens: Int = 0
     
-    // 🔥 新增：用于输入自定义模型
+    // 自定义模型输入
     @AppStorage("customModels") private var customModels: String = ""
 
     var body: some View {
@@ -150,7 +160,6 @@ struct SettingsView: View {
                     TextField("Base URL", text: $baseURL)
                     SecureField("Tavily Key", text: $tavilyKey)
                 }
-                // 🔥 新增：自定义模型列表
                 Section("扩展模型 (英文逗号分隔)") {
                     TextField("例如: glm-4, moonshot-v1-8k", text: $customModels, axis: .vertical)
                         .textInputAutocapitalization(.never)
