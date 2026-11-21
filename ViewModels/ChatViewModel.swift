@@ -8,7 +8,6 @@ final class ChatViewModel: ObservableObject {
     @Published var isStreaming = false
     @Published var errorMessage: String?
     
-    // RAG 文档库
     @Published var ragChunks: [String] = []
     @Published var isRagEnabled = false
 
@@ -19,19 +18,17 @@ final class ChatViewModel: ObservableObject {
         self.conversation = conversation
     }
     
-    // 处理 RAG 切片
     func loadDocument(text: String) {
         let chunkSize = 800
         var chunks: [String] = []
         var currentIndex = text.startIndex
         while currentIndex < text.endIndex {
             let endIndex = text.index(currentIndex, offsetBy: chunkSize, limitedBy: text.endIndex) ?? text.endIndex
-            let chunk = String(text[currentIndex..<endIndex])
-            chunks.append(chunk)
+            chunks.append(String(text[currentIndex..<endIndex]))
             currentIndex = endIndex
         }
         self.ragChunks = chunks
-        UIImpactFeedbackGenerator(style: .success).impactOccurred()
+        UINotificationFeedbackGenerator().notificationOccurred(.success) // 🔥 修复：使用 Notification
     }
     
     func send(_ text: String, imageBase64: String? = nil, useWebSearch: Bool = false) {
@@ -40,7 +37,6 @@ final class ChatViewModel: ObservableObject {
         
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         
-        // 暂时把图片塞进 ChatMessage content 里方便显示（实际发送时会剥离）
         let userMsg = ChatMessage(role: .user, content: trimmed + (imageBase64 != nil ? "\n[图片已附带]" : ""))
         conversation.messages.append(userMsg)
         
@@ -68,7 +64,6 @@ final class ChatViewModel: ObservableObject {
             do {
                 var apiMessages = buildAPIMessages()
                 
-                // 1. 注入 RAG
                 if isRagEnabled && !ragChunks.isEmpty {
                     let relevant = ragChunks.filter { $0.contains(promptText.prefix(10)) }.prefix(2).joined(separator: "\n...\n")
                     if !relevant.isEmpty {
@@ -76,7 +71,6 @@ final class ChatViewModel: ObservableObject {
                     }
                 }
                 
-                // 2. 注入联网
                 if useWebSearch {
                     let searchResult = try? await WebSearchService.shared.search(query: promptText)
                     if let res = searchResult, !res.isEmpty {
@@ -84,9 +78,7 @@ final class ChatViewModel: ObservableObject {
                     }
                 }
                 
-                // 3. 用户消息（带图）
                 if !isAutoGen {
-                    // 去掉刚才为了显示塞进 content 的尾巴
                     apiMessages.removeLast()
                     apiMessages.append(APIMessage(role: "user", text: promptText, imageBase64: imageBase64))
                 }
@@ -118,7 +110,6 @@ final class ChatViewModel: ObservableObject {
         }
     }
     
-    // 🚀 AutoGen 双模型辩论
     func startAutoGen(topic: String) {
         guard !isStreaming else { return }
         conversation.messages.append(ChatMessage(role: .user, content: "启动双模型辩论：\(topic)"))
@@ -141,7 +132,6 @@ final class ChatViewModel: ObservableObject {
         streamTask = Task {
             do {
                 var msgs = [APIMessage(role: "system", content: "你正在进行辩论，你的角色是\(roleName)。请用简短有力的语言表达。")]
-                // 把之前的辩论记录加上
                 for m in conversation.messages.filter({ $0.role != .system }).suffix(4) {
                     msgs.append(APIMessage(role: m.role.rawValue, content: m.content))
                 }
@@ -158,7 +148,6 @@ final class ChatViewModel: ObservableObject {
                 }
                 isStreaming = false
                 
-                // 延迟 1 秒进行下一轮
                 try await Task.sleep(nanoseconds: 1_000_000_000)
                 executeAutoGenLoop(topic: topic, round: round + 1)
             } catch {
