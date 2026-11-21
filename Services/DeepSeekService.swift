@@ -10,8 +10,10 @@ final class DeepSeekService: @unchecked Sendable {
     func streamCompletion(messages: [APIMessage], model: DeepSeekModel, temperature: Double) -> AsyncThrowingStream<StreamEvent, Error> {
         let base = self.baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         let key = self.apiKey
-        let customModel = UserDefaults.standard.string(forKey: "customModelName")
-        let finalModel = (customModel?.isEmpty == false) ? customModel! : model.rawValue
+        
+        // 🔥 核心逻辑：检查是否有自定义激活的模型
+        let activeModel = UserDefaults.standard.string(forKey: "activeModelName") ?? ""
+        let finalModel = activeModel.isEmpty ? model.rawValue : activeModel
         
         return AsyncThrowingStream { continuation in
             let task = Task.detached {
