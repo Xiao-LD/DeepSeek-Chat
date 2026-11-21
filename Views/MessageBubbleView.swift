@@ -32,15 +32,11 @@ struct MessageBubbleView: View {
                 }
             }
             .padding(14)
-            // 🔥 官方风格：用户带颜色，AI 极简透明/灰底
-            .background {
-                if message.role == .user {
-                    Color(hex: UserDefaults.standard.string(forKey: "accentColorHex") ?? "#007AFF").opacity(0.15)
-                } else {
-                    Color.gray.opacity(0.1)
-                }
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            // 🔥 气泡原生玻璃材质 (用户带主题色 Tint，AI 标准玻璃)
+            .glassEffect(
+                message.role == .user ? .regular.tint(Color(hex: UserDefaults.standard.string(forKey: "accentColorHex") ?? "#007AFF").opacity(0.3)) : .regular,
+                in: .rect(cornerRadius: 20)
+            )
             .contextMenu {
                 Button { UIPasteboard.general.string = message.content; UIImpactFeedbackGenerator(style: .light).impactOccurred() } label: { Label("复制文本", systemImage: "doc.on.doc") }
                 Button { notificationManager.textToAppend = message.content } label: { Label("追加到输入框", systemImage: "arrow.down.left.and.arrow.up.right") }
@@ -62,7 +58,6 @@ class NotificationManager: ObservableObject {
     @Published var textToAppend: String? = nil
 }
 
-// 🔥 专用于生成分享长图的纯享视图
 struct ShareImageView: View {
     let conversation: Conversation
     var body: some View {
@@ -75,19 +70,15 @@ struct ShareImageView: View {
                 }
             }
             .padding(.bottom, 10)
-            
             ForEach(conversation.messages) { msg in
                 VStack(alignment: .leading, spacing: 6) {
                     Text(msg.role == .user ? "我" : "DeepSeek").font(.caption).bold().foregroundStyle(.secondary)
                     MarkdownText(markdown: msg.content).padding(12)
-                        .background(msg.role == .user ? Color.blue.opacity(0.1) : Color.gray.opacity(0.1))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .glassEffect(msg.role == .user ? .regular.tint(.blue.opacity(0.1)) : .regular, in: .rect(cornerRadius: 12))
                 }
             }
             Spacer()
         }
-        .padding(24)
-        .frame(width: 400) // 固定宽度以保证渲染清晰
-        .background(Color(UIColor.systemBackground))
+        .padding(24).frame(width: 400).background(Color(UIColor.systemBackground))
     }
 }
