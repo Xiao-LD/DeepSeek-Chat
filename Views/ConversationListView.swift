@@ -71,12 +71,16 @@ struct ConversationListView: View {
             }
             .navigationTitle("对话").searchable(text: $searchText, prompt: "搜索对话")
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) { Button { showSettings = true } label: { Image(systemName: "gearshape.fill").foregroundStyle(.primary) }.buttonStyle(GlassButtonStyle()) }
+                ToolbarItem(placement: .topBarLeading) {
+                    Button { showSettings = true } label: { Image(systemName: "gearshape.fill").foregroundStyle(.primary) }
+                        .buttonStyle(GlassButtonStyle())
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         let new = Conversation(id: UUID(), title: "新对话", messages: [], systemPrompt: "", model: .chat, temperature: 0.7, createdAt: Date(), updatedAt: Date())
                         StorageManager.shared.save(new); reload()
-                    } label: { Image(systemName: "square.and.pencil").foregroundStyle(.primary) }.buttonStyle(GlassButtonStyle())
+                    } label: { Image(systemName: "square.and.pencil").foregroundStyle(.primary) }
+                    .buttonStyle(GlassButtonStyle())
                 }
             }
             .sheet(isPresented: $showSettings) { SettingsView() }
@@ -90,7 +94,6 @@ struct ConversationListView: View {
                     renamingConversation = nil
                 }
             }
-            // 导出功能
             .sheet(item: $exportingConversation) { conv in
                 let mdText = conv.messages.map { "### \($0.role == .user ? "User" : "AI")\n\($0.content)\n" }.joined(separator: "\n---\n")
                 ShareSheet(activityItems: [mdText])
@@ -100,7 +103,6 @@ struct ConversationListView: View {
     private func reload() { conversations = StorageManager.shared.loadAll() }
 }
 
-// 用于导出的系统分享视图
 struct ShareSheet: UIViewControllerRepresentable {
     var activityItems: [Any]
     func makeUIViewController(context: Context) -> UIActivityViewController {
@@ -109,7 +111,6 @@ struct ShareSheet: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
-// 设置界面
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) var colorScheme
@@ -145,4 +146,59 @@ struct SettingsView: View {
                                 Text("输入: \(totalPromptTokens)")
                                 Spacer()
                                 Text("输出: \(totalCompletionTokens)")
-                            }.
+                            }.font(.footnote).foregroundStyle(.primary)
+                            Text("预估总花费: 约 ¥\(String(format: "%.4f", Double(totalPromptTokens) * 0.000001 + Double(totalCompletionTokens) * 0.000002))")
+                                .font(.caption2).foregroundStyle(.secondary)
+                        }
+                        .padding(20).background { RoundedRectangle(cornerRadius: 20).fill(colorScheme == .dark ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.white.opacity(0.8))) }
+                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous)).overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.primary.opacity(0.05), lineWidth: 1))
+
+                        // API 配置
+                        VStack(spacing: 16) {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("DeepSeek API Key").font(.caption).foregroundStyle(.secondary)
+                                SecureField("sk-...", text: $apiKey).textInputAutocapitalization(.never).autocorrectionDisabled().padding(12).background(Color.primary.opacity(0.04)).clipShape(RoundedRectangle(cornerRadius: 10))
+                            }
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("DeepSeek Base URL").font(.caption).foregroundStyle(.secondary)
+                                TextField("https://api.deepseek.com", text: $baseURL).textInputAutocapitalization(.never).autocorrectionDisabled().padding(12).background(Color.primary.opacity(0.04)).clipShape(RoundedRectangle(cornerRadius: 10))
+                            }
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Tavily 搜索 API Key (可选)").font(.caption).foregroundStyle(.secondary)
+                                SecureField("tvly-...", text: $tavilyKey).textInputAutocapitalization(.never).autocorrectionDisabled().padding(12).background(Color.primary.opacity(0.04)).clipShape(RoundedRectangle(cornerRadius: 10))
+                            }
+                        }
+                        .padding(20).background { RoundedRectangle(cornerRadius: 20).fill(colorScheme == .dark ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.white.opacity(0.8))) }
+                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous)).overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.primary.opacity(0.05), lineWidth: 1))
+                        
+                        Button {
+                            KeychainHelper.shared.save(apiKey, service: "DeepSeekChat", account: "apiKey")
+                            UserDefaults.standard.set(baseURL, forKey: "apiBaseURL")
+                            UserDefaults.standard.set(tavilyKey, forKey: "tavilyApiKey")
+                            saved = true; DispatchQueue.main.asyncAfter(deadline: .now() + 2) { saved = false }
+                        } label: {
+                            Text(saved ? "已保存" : "保存配置").font(.headline).foregroundStyle(saved ? .green : .blue).frame(maxWidth: .infinity).padding(.vertical, 14)
+                                .background { RoundedRectangle(cornerRadius: 16).fill(colorScheme == .dark ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.white)) }
+                                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous)).overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.blue.opacity(saved ? 0 : 0.2), lineWidth: 1))
+                        }.buttonStyle(.plain).padding(.horizontal, 20)
+                    }
+                    .padding(.top, 20)
+                }
+            }
+            .navigationTitle("设置").navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("完成") { dismiss() }.font(.headline).foregroundStyle(.primary).padding(.horizontal, 12).padding(.vertical, 6)
+                        .background { Capsule().fill(colorScheme == .dark ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.white)) }
+                        .clipShape(Capsule()).overlay(Capsule().stroke(Color.primary.opacity(0.05), lineWidth: 1))
+                }
+            }
+            .toolbarBackground(.ultraThinMaterial, for: .navigationBar).toolbarBackground(.visible, for: .navigationBar)
+            .onAppear {
+                apiKey = KeychainHelper.shared.read(service: "DeepSeekChat", account: "apiKey") ?? ""
+                baseURL = UserDefaults.standard.string(forKey: "apiBaseURL") ?? "https://api.deepseek.com"
+                tavilyKey = UserDefaults.standard.string(forKey: "tavilyApiKey") ?? ""
+            }
+        }
+    }
+}
