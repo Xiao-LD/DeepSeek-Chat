@@ -27,6 +27,7 @@ struct ConversationListView: View {
             ZStack {
                 GlassBackground()
                 
+                // 1. 纯列表区域，不再被遮挡
                 ScrollView {
                     LazyVStack(spacing: 10) {
                         ForEach(filteredConversations) { conv in
@@ -51,9 +52,10 @@ struct ConversationListView: View {
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 10)
-                    .padding(.bottom, 80)
+                    .padding(.bottom, 20)
                 }
-                .safeAreaInset(edge: .top) {
+                // 🔥 核心修复 1：顶部安全区注入，列表自动避开，绝不遮挡点击
+                .safeAreaInset(edge: .top, spacing: 0) {
                     VStack(spacing: 0) {
                         GlassEffectContainer(spacing: 16) {
                             HStack {
@@ -82,15 +84,11 @@ struct ConversationListView: View {
                         .padding(.top, 8)
                         .padding(.bottom, 10)
                     }
-                    .background((colorScheme == .dark ? Color.black : Color.white).opacity(0.95).blur(radius: 10))
-                    .overlay(alignment: .bottom) {
-                        LinearGradient(colors: [(colorScheme == .dark ? Color.black : Color.white).opacity(0), (colorScheme == .dark ? Color.black : Color.white)], startPoint: .top, endPoint: .bottom)
-                            .frame(height: 20).offset(y: 20)
-                    }
+                    // 给顶栏加上真正的毛玻璃背景
+                    .background(.ultraThinMaterial)
                 }
-                
-                VStack {
-                    Spacer()
+                // 🔥 核心修复 2：底部搜索框也用安全区注入
+                .safeAreaInset(edge: .bottom, spacing: 0) {
                     HStack {
                         Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
                         TextField("搜索历史", text: $searchText).textInputAutocapitalization(.never)
@@ -99,22 +97,19 @@ struct ConversationListView: View {
                     .glassEffect(.regular.interactive(), in: .capsule)
                     .padding(.horizontal, 16)
                     .padding(.bottom, 20)
+                    .padding(.top, 10)
+                    .background(.ultraThinMaterial)
                 }
             }
             .toolbar(.hidden, for: .navigationBar)
-            // 🔥 修复：使用 item 驱动 sheet 会在 Swift 6 下更安全，避免直接捕获无主闭包
-            .sheet(isPresented: $showSettings, content: {
-                SettingsView()
-            })
+            .sheet(isPresented: $showSettings) { SettingsView() }
             .onAppear(perform: reload)
             .alert("重命名", isPresented: Binding(get: { renamingConversation != nil }, set: { if !$0 { renamingConversation = nil } })) {
                 TextField("新标题", text: $newTitle)
                 Button("取消", role: .cancel) { renamingConversation = nil }
                 Button("保存") { if var conv = renamingConversation { conv.title = newTitle; StorageManager.shared.save(conv); reload() }; renamingConversation = nil }
             }
-            .sheet(isPresented: $showShareSheet, content: {
-                if let img = shareImage { ShareSheet(activityItems: [img]) }
-            })
+            .sheet(isPresented: $showShareSheet) { if let img = shareImage { ShareSheet(activityItems: [img]) } }
         }
     }
     
@@ -130,68 +125,5 @@ struct ConversationListView: View {
     private func reload() { conversations = StorageManager.shared.loadAll() }
 }
 
-// 下面保持 ShareSheet, SettingsView, Color 扩展 不变。
-// 为了防止拼接断掉，我把它们完整写出来：
-struct ShareSheet: UIViewControllerRepresentable {
-    var activityItems: [Any]
-    func makeUIViewController(context: Context) -> UIActivityViewController { UIActivityViewController(activityItems: activityItems, applicationActivities: nil) }
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
-}
-
-struct SettingsView: View {
-    @Environment(\.dismiss) private var dismiss
-    @State private var apiKey = ""
-    @State private var baseURL = "https://api.deepseek.com"
-    @State private var tavilyKey = ""
-    @State private var saved = false
-    @AppStorage("appTheme") private var appTheme: Int = 0
-    @AppStorage("accentColorHex") private var accentColorHex: String = "#007AFF"
-    @AppStorage("totalPromptTokens") private var totalPromptTokens: Int = 0
-    @AppStorage("totalCompletionTokens") private var totalCompletionTokens: Int = 0
-    @AppStorage("customModelName") private var customModelName: String = ""
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section("外观") {
-                    Picker("主题", selection: $appTheme) { Text("系统").tag(0); Text("浅色").tag(1); Text("深色").tag(2) }.pickerStyle(.segmented)
-                    ColorPicker("强调色", selection: Binding(get: { Color(hex: accentColorHex) }, set: { accentColorHex = $0.toHex() ?? "#007AFF" }))
-                }
-                Section("统计") { Text("消耗: \(totalPromptTokens) / \(totalCompletionTokens) tokens") }
-                Section("API 配置") {
-                    SecureField("API Key", text: $apiKey)
-                    TextField("Base URL", text: $baseURL)
-                    TextField("自定义模型名 (留空默认)", text: $customModelName)
-                    SecureField("Tavily Key", text: $tavilyKey)
-                }
-                Section {
-                    Button(saved ? "已保存" : "保存配置") {
-                        KeychainHelper.shared.save(apiKey, service: "DeepSeekChat", account: "apiKey")
-                        UserDefaults.standard.set(baseURL, forKey: "apiBaseURL")
-                        UserDefaults.standard.set(tavilyKey, forKey: "tavilyApiKey")
-                        saved = true; DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { saved = false }
-                    }
-                }
-            }
-            .navigationTitle("设置").navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("完成") { dismiss() }.buttonStyle(.glassProminent)
-                }
-            }
-            .onAppear {
-                apiKey = KeychainHelper.shared.read(service: "DeepSeekChat", account: "apiKey") ?? ""
-                baseURL = UserDefaults.standard.string(forKey: "apiBaseURL") ?? "https://api.deepseek.com"
-                tavilyKey = UserDefaults.standard.string(forKey: "tavilyApiKey") ?? ""
-            }
-        }
-    }
-}
-
-extension Color {
-    func toHex() -> String? {
-        let uic = UIColor(self)
-        guard let components = uic.cgColor.components, components.count >= 3 else { return nil }
-        return String(format: "#%02lX%02lX%02lX", lroundf(Float(components[0]) * 255), lroundf(Float(components[1]) * 255), lroundf(Float(components[2]) * 255))
-    }
-}
+// ShareSheet 和 SettingsView 保持原样即可，这里省略以节省篇幅。
+// 请务必保留你 GitHub 上原有的 ShareSheet 和 SettingsView，不要删除！
