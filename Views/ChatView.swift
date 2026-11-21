@@ -58,7 +58,6 @@ struct ChatView: View {
                     }
                 }
                 .scrollDismissesKeyboard(.interactively)
-                // 🔥 启用 iOS 26 原生边缘柔边模糊 SDK (ScrollEdgeEffect)
                 .scrollEdgeEffectStyle(.soft, for: .top)
                 .scrollEdgeEffectStyle(.soft, for: .bottom)
                 .onAppear {
@@ -68,12 +67,13 @@ struct ChatView: View {
                     guard let last = viewModel.conversation.messages.last else { return }
                     if !showScrollToBottom { withAnimation { proxy.scrollTo(last.id, anchor: .bottom) } }
                 }
+                // 🔥 修复：把回到底部的按钮往下挪，贴紧输入框上方
                 .overlay(alignment: .bottomTrailing) {
                     if showScrollToBottom {
                         Button { withAnimation { proxy.scrollTo("BOTTOM_ANCHOR", anchor: .bottom) } } label: {
                             Image(systemName: "arrow.down").font(.system(size: 16, weight: .bold)).foregroundStyle(.primary).frame(width: 36, height: 36)
                                 .glassEffect(.regular.interactive(), in: .circle)
-                        }.padding(.trailing, 20).padding(.bottom, 110).transition(.scale.combined(with: .opacity))
+                        }.padding(.trailing, 20).padding(.bottom, 16).transition(.scale.combined(with: .opacity))
                     }
                 }
             }
@@ -107,7 +107,6 @@ struct ChatView: View {
                         
                         Spacer()
                         
-                        // 🔥 已去掉耳机，换成了更实用的“重新生成”
                         Button { viewModel.regenerate() } label: {
                             Image(systemName: "arrow.clockwise")
                                 .font(.system(size: 18, weight: .bold))
@@ -116,8 +115,16 @@ struct ChatView: View {
                         }
                     }
                     .padding(.horizontal, 16)
-                    .padding(.top, 50)
+                    .padding(.top, 10) // 🔥 整体上移
                 }
+                
+                // 🔥 修复模糊问题：加一层高度为 30 的背景渐隐，配合上方的玻璃，滑上去文字直接消失
+                LinearGradient(
+                    colors: [(colorScheme == .dark ? Color.black : Color.white), (colorScheme == .dark ? Color.black : Color.white).opacity(0)],
+                    startPoint: .top, endPoint: .bottom
+                )
+                .frame(height: 30)
+                .allowsHitTesting(false)
             }
         }
         .navigationBarHidden(true)
