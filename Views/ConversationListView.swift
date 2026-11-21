@@ -126,7 +126,7 @@ struct ConversationListView: View {
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.colorScheme) var colorScheme // 🔥 补上缺失的环境变量声明
+    @Environment(\.colorScheme) var colorScheme
     @State private var apiKey = ""
     @State private var baseURL = "https://api.deepseek.com"
     @State private var tavilyKey = ""
@@ -134,7 +134,9 @@ struct SettingsView: View {
     @AppStorage("appTheme") private var appTheme: Int = 0
     @AppStorage("totalPromptTokens") private var totalPromptTokens: Int = 0
     @AppStorage("totalCompletionTokens") private var totalCompletionTokens: Int = 0
-    @AppStorage("customModelName") private var customModelName: String = ""
+    
+    // 🔥 新增：用于输入自定义模型
+    @AppStorage("customModels") private var customModels: String = ""
 
     var body: some View {
         NavigationStack {
@@ -146,8 +148,13 @@ struct SettingsView: View {
                 Section("API 配置") {
                     SecureField("API Key", text: $apiKey)
                     TextField("Base URL", text: $baseURL)
-                    TextField("自定义模型名 (留空默认)", text: $customModelName)
                     SecureField("Tavily Key", text: $tavilyKey)
+                }
+                // 🔥 新增：自定义模型列表
+                Section("扩展模型 (英文逗号分隔)") {
+                    TextField("例如: glm-4, moonshot-v1-8k", text: $customModels, axis: .vertical)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
                 }
                 Section {
                     Button(saved ? "已保存" : "保存配置") {
@@ -162,14 +169,7 @@ struct SettingsView: View {
             .navigationTitle("设置").navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    // 🔥 简化按钮写法，避免类型推断错误
-                    Button {
-                        dismiss()
-                    } label: {
-                        Text("完成")
-                            .font(.headline)
-                            .foregroundStyle(.primary)
-                    }
+                    Button { dismiss() } label: { Text("完成").font(.headline).foregroundStyle(.primary) }
                 }
             }
             .onAppear {
