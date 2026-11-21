@@ -5,15 +5,11 @@ final class DeepSeekService: @unchecked Sendable {
         get { UserDefaults.standard.string(forKey: "apiBaseURL") ?? "https://api.deepseek.com" }
         set { UserDefaults.standard.set(newValue, forKey: "apiBaseURL") }
     }
-    var apiKey: String? {
-        KeychainHelper.shared.read(service: "DeepSeekChat", account: "apiKey")
-    }
+    var apiKey: String? { KeychainHelper.shared.read(service: "DeepSeekChat", account: "apiKey") }
 
     func streamCompletion(messages: [APIMessage], model: DeepSeekModel, temperature: Double) -> AsyncThrowingStream<StreamEvent, Error> {
         let base = self.baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         let key = self.apiKey
-        
-        // 检查是否有自定义模型
         let customModel = UserDefaults.standard.string(forKey: "customModelName")
         let finalModel = (customModel?.isEmpty == false) ? customModel! : model.rawValue
         
@@ -44,9 +40,7 @@ final class DeepSeekService: @unchecked Sendable {
                     for try await line in bytes.lines {
                         guard line.hasPrefix("data:") else { continue }
                         let payload = line.dropFirst(5).trimmingCharacters(in: .whitespaces)
-                        if payload == "[DONE]" {
-                            continuation.yield(.finished(usage: nil)); continuation.finish(); return
-                        }
+                        if payload == "[DONE]" { continuation.yield(.finished(usage: nil)); continuation.finish(); return }
                         guard let data = payload.data(using: .utf8), let chunk = try? JSONDecoder().decode(ChatCompletionChunk.self, from: data) else { continue }
                         for choice in chunk.choices ?? [] {
                             if let r = choice.delta.reasoningContent, !r.isEmpty { continuation.yield(.reasoningDelta(r)) }
