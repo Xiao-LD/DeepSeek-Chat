@@ -126,6 +126,7 @@ struct ConversationListView: View {
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) var colorScheme // 🔥 补上缺失的环境变量声明
     @State private var apiKey = ""
     @State private var baseURL = "https://api.deepseek.com"
     @State private var tavilyKey = ""
@@ -140,7 +141,6 @@ struct SettingsView: View {
             Form {
                 Section("外观") {
                     Picker("主题", selection: $appTheme) { Text("系统").tag(0); Text("浅色").tag(1); Text("深色").tag(2) }.pickerStyle(.segmented)
-                    // 🔥 删除了原本的 ColorPicker 强调色选项
                 }
                 Section("统计") { Text("消耗: \(totalPromptTokens) / \(totalCompletionTokens) tokens") }
                 Section("API 配置") {
@@ -156,13 +156,20 @@ struct SettingsView: View {
                         UserDefaults.standard.set(tavilyKey, forKey: "tavilyApiKey")
                         saved = true; DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { saved = false }
                     }
-                    .foregroundStyle(.primary) // 按钮变黑/白
+                    .foregroundStyle(.primary)
                 }
             }
             .navigationTitle("设置").navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("完成") { dismiss() }.buttonStyle(.glassProminent).tint(colorScheme == .dark ? .white : .black)
+                    // 🔥 简化按钮写法，避免类型推断错误
+                    Button {
+                        dismiss()
+                    } label: {
+                        Text("完成")
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+                    }
                 }
             }
             .onAppear {
