@@ -33,7 +33,6 @@ struct ConversationListView: View {
     @State private var showSettings = false
     @Environment(\.colorScheme) var colorScheme
     
-    // 搜索与重命名状态
     @State private var searchText = ""
     @State private var renamingConversation: Conversation?
     @State private var newTitle = ""
@@ -54,17 +53,11 @@ struct ConversationListView: View {
                             NavigationLink(destination: ChatView(conversation: conv)) {
                                 HStack {
                                     VStack(alignment: .leading, spacing: 4) {
-                                        Text(conv.title)
-                                            .font(.headline)
-                                            .foregroundStyle(.primary)
-                                        Text(conv.updatedAt.formatted(date: .abbreviated, time: .shortened))
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
+                                        Text(conv.title).font(.headline).foregroundStyle(.primary)
+                                        Text(conv.updatedAt.formatted(date: .abbreviated, time: .shortened)).font(.caption).foregroundStyle(.secondary)
                                     }
                                     Spacer()
-                                    Image(systemName: "chevron.right")
-                                        .font(.system(size: 14, weight: .semibold))
-                                        .foregroundStyle(.tertiary)
+                                    Image(systemName: "chevron.right").font(.system(size: 14, weight: .semibold)).foregroundStyle(.tertiary)
                                 }
                                 .padding()
                                 .background {
@@ -77,18 +70,8 @@ struct ConversationListView: View {
                             }
                             .buttonStyle(.plain)
                             .contextMenu {
-                                Button {
-                                    renamingConversation = conv
-                                    newTitle = conv.title
-                                } label: {
-                                    Label("重命名", systemImage: "pencil")
-                                }
-                                Button(role: .destructive) {
-                                    StorageManager.shared.delete(id: conv.id)
-                                    reload()
-                                } label: {
-                                    Label("删除", systemImage: "trash")
-                                }
+                                Button { renamingConversation = conv; newTitle = conv.title } label: { Label("重命名", systemImage: "pencil") }
+                                Button(role: .destructive) { StorageManager.shared.delete(id: conv.id); reload() } label: { Label("删除", systemImage: "trash") }
                             }
                         }
                     }
@@ -96,67 +79,45 @@ struct ConversationListView: View {
                 }
             }
             .navigationTitle("对话")
-            .searchable(text: $searchText, prompt: "搜索对话") // 搜索框
+            .searchable(text: $searchText, prompt: "搜索对话")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button { showSettings = true } label: {
-                        Image(systemName: "gearshape.fill").foregroundStyle(.primary)
-                    }
-                    .buttonStyle(GlassButtonStyle())
+                    Button { showSettings = true } label: { Image(systemName: "gearshape.fill").foregroundStyle(.primary) }.buttonStyle(GlassButtonStyle())
                 }
-                
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        let new = Conversation(
-                            id: UUID(), title: "新对话", messages: [],
-                            systemPrompt: "", model: .chat, temperature: 0.7,
-                            createdAt: Date(), updatedAt: Date()
-                        )
-                        StorageManager.shared.save(new)
-                        reload()
-                    } label: {
-                        Image(systemName: "square.and.pencil").foregroundStyle(.primary)
-                    }
-                    .buttonStyle(GlassButtonStyle())
+                        let new = Conversation(id: UUID(), title: "新对话", messages: [], systemPrompt: "", model: .chat, temperature: 0.7, createdAt: Date(), updatedAt: Date())
+                        StorageManager.shared.save(new); reload()
+                    } label: { Image(systemName: "square.and.pencil").foregroundStyle(.primary) }.buttonStyle(GlassButtonStyle())
                 }
             }
             .sheet(isPresented: $showSettings) { SettingsView() }
             .onAppear(perform: reload)
             .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
-            // 重命名弹窗
-            .alert("重命名对话", isPresented: Binding(
-                get: { renamingConversation != nil },
-                set: { if !$0 { renamingConversation = nil } }
-            )) {
+            .alert("重命名对话", isPresented: Binding(get: { renamingConversation != nil }, set: { if !$0 { renamingConversation = nil } })) {
                 TextField("输入新标题", text: $newTitle)
                 Button("取消", role: .cancel) { renamingConversation = nil }
                 Button("保存") {
-                    if var conv = renamingConversation {
-                        conv.title = newTitle
-                        StorageManager.shared.save(conv)
-                        reload()
-                    }
+                    if var conv = renamingConversation { conv.title = newTitle; StorageManager.shared.save(conv); reload() }
                     renamingConversation = nil
                 }
             }
         }
     }
-
-    private func reload() {
-        conversations = StorageManager.shared.loadAll()
-    }
+    private func reload() { conversations = StorageManager.shared.loadAll() }
 }
 
-// SettingsView 保持之前不变，这里为了篇幅省略... 请保留你 GitHub 上原本的 SettingsView 代码！！！
-// 如果你全选替换，记得把上面的代码和你原本的 SettingsView 拼在一起，或者把 SettingsView 也单独拎出来。
-// 为了方便你一键复制，下面是完整的 SettingsView 代码：
+// 重点修改：增加主题选择器
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) var colorScheme
     @State private var apiKey = ""
     @State private var baseURL = "https://api.deepseek.com"
     @State private var saved = false
+    
+    // 外观设置
+    @AppStorage("appTheme") private var appTheme: Int = 0
 
     var body: some View {
         NavigationStack {
@@ -164,24 +125,30 @@ struct SettingsView: View {
                 GlassBackground()
                 ScrollView {
                     VStack(spacing: 20) {
+                        // 外观卡片
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("外观主题").font(.caption).foregroundStyle(.secondary)
+                            Picker("外观", selection: $appTheme) {
+                                Text("跟随系统").tag(0)
+                                Text("浅色").tag(1)
+                                Text("深色").tag(2)
+                            }
+                            .pickerStyle(.segmented)
+                        }
+                        .padding(20)
+                        .background { RoundedRectangle(cornerRadius: 20).fill(colorScheme == .dark ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.white.opacity(0.8))) }
+                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.primary.opacity(0.05), lineWidth: 1))
+
+                        // API 配置卡片
                         VStack(spacing: 16) {
                             VStack(alignment: .leading, spacing: 6) {
                                 Text("API Key").font(.caption).foregroundStyle(.secondary)
-                                SecureField("sk-...", text: $apiKey)
-                                    .textInputAutocapitalization(.never)
-                                    .autocorrectionDisabled()
-                                    .padding(12)
-                                    .background(Color.primary.opacity(0.04))
-                                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                                SecureField("sk-...", text: $apiKey).textInputAutocapitalization(.never).autocorrectionDisabled().padding(12).background(Color.primary.opacity(0.04)).clipShape(RoundedRectangle(cornerRadius: 10))
                             }
                             VStack(alignment: .leading, spacing: 6) {
                                 Text("Base URL").font(.caption).foregroundStyle(.secondary)
-                                TextField("https://api.deepseek.com", text: $baseURL)
-                                    .textInputAutocapitalization(.never)
-                                    .autocorrectionDisabled()
-                                    .padding(12)
-                                    .background(Color.primary.opacity(0.04))
-                                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                                TextField("https://api.deepseek.com", text: $baseURL).textInputAutocapitalization(.never).autocorrectionDisabled().padding(12).background(Color.primary.opacity(0.04)).clipShape(RoundedRectangle(cornerRadius: 10))
                             }
                         }
                         .padding(20)
@@ -195,11 +162,7 @@ struct SettingsView: View {
                             saved = true
                             DispatchQueue.main.asyncAfter(deadline: .now() + 2) { saved = false }
                         } label: {
-                            Text(saved ? "已保存" : "保存配置")
-                                .font(.headline)
-                                .foregroundStyle(saved ? .green : .blue)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 14)
+                            Text(saved ? "已保存" : "保存配置").font(.headline).foregroundStyle(saved ? .green : .blue).frame(maxWidth: .infinity).padding(.vertical, 14)
                                 .background { RoundedRectangle(cornerRadius: 16).fill(colorScheme == .dark ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.white)) }
                                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                                 .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.blue.opacity(saved ? 0 : 0.2), lineWidth: 1))
@@ -215,14 +178,9 @@ struct SettingsView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("完成") { dismiss() }
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
+                    Button("完成") { dismiss() }.font(.headline).foregroundStyle(.primary).padding(.horizontal, 12).padding(.vertical, 6)
                         .background { Capsule().fill(colorScheme == .dark ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.white)) }
-                        .clipShape(Capsule())
-                        .overlay(Capsule().stroke(Color.primary.opacity(0.05), lineWidth: 1))
+                        .clipShape(Capsule()).overlay(Capsule().stroke(Color.primary.opacity(0.05), lineWidth: 1))
                 }
             }
             .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
