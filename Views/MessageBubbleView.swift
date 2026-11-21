@@ -6,6 +6,7 @@ struct MessageBubbleView: View {
     let message: ChatMessage
     @State private var synthesizer = AVSpeechSynthesizer()
     @State private var cursorVisible = true
+    @Environment(\.colorScheme) var colorScheme // 🔥 引入环境
     
     @EnvironmentObject var notificationManager: NotificationManager
     
@@ -32,9 +33,11 @@ struct MessageBubbleView: View {
                 }
             }
             .padding(14)
-            // 🔥 气泡原生玻璃材质 (用户带主题色 Tint，AI 标准玻璃)
+            // 🔥 彻底移除蓝色 tint。用户：浅黑/深白底色。AI：纯透明玻璃。
             .glassEffect(
-                message.role == .user ? .regular.tint(Color(hex: UserDefaults.standard.string(forKey: "accentColorHex") ?? "#007AFF").opacity(0.3)) : .regular,
+                message.role == .user
+                    ? .regular.tint(colorScheme == .dark ? .white.opacity(0.15) : .black.opacity(0.08))
+                    : .regular,
                 in: .rect(cornerRadius: 20)
             )
             .contextMenu {
@@ -63,7 +66,7 @@ struct ShareImageView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             HStack {
-                Image(systemName: "brain.head.profile").font(.largeTitle).foregroundStyle(.blue)
+                Image(systemName: "brain.head.profile").font(.largeTitle).foregroundStyle(.primary)
                 VStack(alignment: .leading) {
                     Text("DeepSeek 对话分享").font(.headline)
                     Text(Date().formatted()).font(.caption).foregroundStyle(.secondary)
@@ -74,7 +77,7 @@ struct ShareImageView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(msg.role == .user ? "我" : "DeepSeek").font(.caption).bold().foregroundStyle(.secondary)
                     MarkdownText(markdown: msg.content).padding(12)
-                        .glassEffect(msg.role == .user ? .regular.tint(.blue.opacity(0.1)) : .regular, in: .rect(cornerRadius: 12))
+                        .glassEffect(msg.role == .user ? .regular.tint(.black.opacity(0.1)) : .regular, in: .rect(cornerRadius: 12))
                 }
             }
             Spacer()
