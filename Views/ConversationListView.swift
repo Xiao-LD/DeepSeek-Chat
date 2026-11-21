@@ -1,21 +1,10 @@
 import SwiftUI
 
+// 全局纯色背景
 struct GlassBackground: View {
     @Environment(\.colorScheme) var colorScheme
     var body: some View {
-        if colorScheme == .dark { Color.black.ignoresSafeArea() }
-        else { Color(red: 0.97, green: 0.97, blue: 0.98).ignoresSafeArea() }
-    }
-}
-
-struct GlassButtonStyle: ButtonStyle {
-    @Environment(\.colorScheme) var colorScheme
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .padding(10).background { if colorScheme == .dark { Circle().fill(.ultraThinMaterial) } else { Circle().fill(Color.white) } }
-            .clipShape(Circle()).overlay(Circle().stroke(Color.primary.opacity(0.05), lineWidth: 1))
-            .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.2 : 0.05), radius: configuration.isPressed ? 2 : 6, x: 0, y: configuration.isPressed ? 1 : 3)
-            .scaleEffect(configuration.isPressed ? 0.95 : 1.0).animation(.easeOut(duration: 0.2), value: configuration.isPressed)
+        (colorScheme == .dark ? Color.black : Color.white).ignoresSafeArea()
     }
 }
 
@@ -50,8 +39,7 @@ struct ConversationListView: View {
                                     Spacer()
                                 }
                                 .padding(16)
-                                .background(colorScheme == .dark ? Color(white: 0.15) : Color.white)
-                                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                                .glassEffect(.regular, in: .rect(cornerRadius: 16))
                             }
                             .buttonStyle(.plain)
                             .contextMenu {
@@ -67,13 +55,19 @@ struct ConversationListView: View {
             .navigationTitle("对话").searchable(text: $searchText, prompt: "搜索历史")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button { showSettings = true } label: { Image(systemName: "gearshape").foregroundStyle(.primary) }.buttonStyle(GlassButtonStyle())
+                    Button { showSettings = true } label: {
+                        Image(systemName: "line.3.horizontal").font(.system(size: 18, weight: .medium)).foregroundStyle(.primary).frame(width: 40, height: 40)
+                    }
+                    .buttonStyle(.glass)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         let new = Conversation(id: UUID(), title: "新对话", messages: [], systemPrompt: "", model: .chat, temperature: 0.7, createdAt: Date(), updatedAt: Date())
                         StorageManager.shared.save(new); reload()
-                    } label: { Image(systemName: "plus").foregroundStyle(.primary) }.buttonStyle(GlassButtonStyle())
+                    } label: {
+                        Image(systemName: "plus").font(.system(size: 18, weight: .medium)).foregroundStyle(.primary).frame(width: 40, height: 40)
+                    }
+                    .buttonStyle(.glass)
                 }
             }
             .sheet(isPresented: $showSettings) { SettingsView() }
@@ -83,9 +77,7 @@ struct ConversationListView: View {
                 Button("取消", role: .cancel) { renamingConversation = nil }
                 Button("保存") { if var conv = renamingConversation { conv.title = newTitle; StorageManager.shared.save(conv); reload() }; renamingConversation = nil }
             }
-            .sheet(isPresented: $showShareSheet) {
-                if let img = shareImage { ShareSheet(activityItems: [img]) }
-            }
+            .sheet(isPresented: $showShareSheet) { if let img = shareImage { ShareSheet(activityItems: [img]) } }
         }
     }
     
@@ -95,7 +87,7 @@ struct ConversationListView: View {
         if let uiImage = renderer.uiImage {
             shareImage = uiImage
             showShareSheet = true
-            UINotificationFeedbackGenerator().notificationOccurred(.success) // 🔥 修复：使用 Notification
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
         }
     }
     private func reload() { conversations = StorageManager.shared.loadAll() }
@@ -126,9 +118,7 @@ struct SettingsView: View {
                     Picker("主题", selection: $appTheme) { Text("系统").tag(0); Text("浅色").tag(1); Text("深色").tag(2) }.pickerStyle(.segmented)
                     ColorPicker("强调色", selection: Binding(get: { Color(hex: accentColorHex) }, set: { accentColorHex = $0.toHex() ?? "#007AFF" }))
                 }
-                Section("统计") {
-                    Text("消耗: \(totalPromptTokens) / \(totalCompletionTokens) tokens")
-                }
+                Section("统计") { Text("消耗: \(totalPromptTokens) / \(totalCompletionTokens) tokens") }
                 Section("API 配置") {
                     SecureField("API Key", text: $apiKey)
                     TextField("Base URL", text: $baseURL)
@@ -145,7 +135,11 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("设置").navigationBarTitleDisplayMode(.inline)
-            .toolbar { Button("完成") { dismiss() } }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("完成") { dismiss() }.buttonStyle(.glassProminent)
+                }
+            }
             .onAppear {
                 apiKey = KeychainHelper.shared.read(service: "DeepSeekChat", account: "apiKey") ?? ""
                 baseURL = UserDefaults.standard.string(forKey: "apiBaseURL") ?? "https://api.deepseek.com"
